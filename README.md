@@ -49,10 +49,11 @@ change them to your needs.
 
 DRM:
 ----
-	DRM with widevine is not straightforward. The programm can decode the stream with widevine
-	but it needs the DRM Key to do so. It seems that each Operator with DRM encoded streams has
-	his own method to get the Key. So you need to implement your own way to get the key and 
-	provide it to the programm. See the example for ORF in dashstreams.sh in the Test directory.
+	DRM with widevine is not straightforward. The programm can decode the stream with
+	widevine but it needs the DRM Key to do so. It seems that each Operator with DRM 
+	encoded streams has his own method to get the Key. So you need to implement your 
+	own way to get the key and provide it to the programm. See the example for ORF in 
+	dashstreams.sh in the Test directory.
 
 
 
@@ -70,4 +71,4 @@ Install:
 
 Known Bugs:
 -----------
-	DRM Streams are workin but too still too slow 
+	DRM Streams are workin but very slow 
