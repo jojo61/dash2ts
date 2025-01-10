@@ -8,7 +8,7 @@ void addon_log_msg(const KODI_ADDON_BACKEND_HDL hdl,
                     const int level,
                     const char *msg)
 {
-    //printf("Addon LOG: %s\n", msg);
+    printf("Addon LOG: %s\n", msg);
 }
 
 void free_string(const KODI_ADDON_BACKEND_HDL hdl, char* str)
@@ -145,6 +145,8 @@ public:
         m_interface.toKodi->kodi_filesystem->get_property_values = get_property_values;
         m_interface.toKodi->kodi_filesystem->close_file = close_file;
         m_interface.toKodi->kodi_filesystem->read_file = read_file;
+        m_interface.toKodi->kodi_filesystem->open_file_for_write = open_file_for_write;
+        m_interface.toKodi->kodi_filesystem->write_file = write_file;
         m_interface.toKodi->kodi_filesystem->get_file_download_speed = get_file_download_speed;
         m_interface.toKodi->kodi_filesystem->translate_special_protocol = translate_special_protocol;
 

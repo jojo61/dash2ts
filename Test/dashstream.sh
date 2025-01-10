@@ -31,20 +31,29 @@ PARAMETER=${1}
 # Iptv plugin listens this port
 PORT=${2}
 
+DRM=""
+
 # There is a way to specify multiple URLs in the same script. The selection is
 # then controlled by the extra parameter passed by IPTV plugin to the script
 case ${PARAMETER} in
     1)
-        URL="https://orf1-247.mdn.ors.at/orf/orf1/qxa-247/manifest.mpd"
+        #URL="https://orf1-247.mdn.ors.at/orf/orf1/qxa-247/manifest.mpd"
+	URL="https://api-tvthek.orf.at/api/v4.3/livestream/14379066"
         ;;
     2)
-        URL="https://orf2-247.mdn.ors.at/orf/orf2/qxa-247/manifest.mpd"
+        #URL="https://orf2-247.mdn.ors.at/orf/orf2/qxa-247/manifest.mpd"
+	URL="https://api-tvthek.orf.at/api/v4.3/livestream/14378920"
         ;;
     3)
-        URL="https://orf3-247.mdn.ors.at/orf/orf3/qxa-247/manifest.mpd"
+        #URL="https://orf3-247.mdn.ors.at/orf/orf3/qxa-247/manifest.mpd"
+	URL="https://api-tvthek.orf.at/api/v4.3/livestream/14378956"
+        ;;
+    4)
+        #URL="https://orfs.mdn.ors.at/orf/orfs/drmqxa/manifest.mpd"
+	URL="https://api-tvthek.orf.at/api/v4.3/livestream/14379001"
         ;;
     *)
-        URL="https://orf2-247.mdn.ors.at/orf/orf2/qxa-247/manifest.mpd"
+	URL="https://api-tvthek.orf.at/api/v4.3/timeshift/channel/3026625/sources"
         ;;
 esac
 
@@ -53,7 +62,19 @@ if [ -z "${URL}" ]; then
     exit 1
 fi
 
-/home/jojo/kodi/build/dash2ts ${URL} ${PORT} 
+JSON=$(wget --header='Authorization: Basic b3JmX29uX3Y0MzpqRlJzYk5QRmlQU3h1d25MYllEZkNMVU41WU5aMjhtdA=='\
+              --header='User_Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'\
+              -q -O /tmp/channel.json $URL)
+#JSON=${CMD}
+drm_token=$(jq .drm_token /tmp/channel.json)
+EURL=$(jq .sources.dash /tmp/channel.json | grep qxa | cut -f1 -d ":" --complement | tr "\"," " " | cut -f1 -d "?")
+
+echo URL: $EURL
+echo Token: $drm_token
+
+
+
+/home/jojo/dash2ts/build/dash2ts ${EURL} ${PORT} ${drm_token} 
 
 #PID=${!}
 

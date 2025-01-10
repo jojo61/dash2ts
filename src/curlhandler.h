@@ -23,6 +23,8 @@ int writeptr,readptr;
 void *curl;
 std::string m_postdata;
 int post;
+int fp;
+char *useragent;
 };
 
 struct ch curlhandler[10];
@@ -193,17 +195,18 @@ const char * GetValue(const char *name,struct ch *c) {
 
 void * curl_create(void * base, const char *url) {
 
-    //printf("Open URL %s\n",url);
+    
     int i = get_curl_instance();
     if (i == -1)
         return nullptr;
-
+    printf("Open Handle %d URL %s\n",i,url);
     struct ch *c = &curlhandler[i];    
     c->curl = curl_easy_init();
     if (c->curl) {
         curl_easy_setopt(c->curl, CURLOPT_URL, url);
         c->readptr = 0;
         c->writeptr = 0;
+        c->fp = -1;
     }
     return c;
 
@@ -217,7 +220,7 @@ bool curl_open(void *base, void *curl, unsigned int flags) {
     if (c->curl) {
         //curl_easy_setopt(c->curl, CURLOPT_URL, url);
         curl_easy_setopt(c->curl, CURLOPT_NOPROGRESS, 1L);
-        curl_easy_setopt(c->curl, CURLOPT_USERAGENT, "curl/7.42.0");
+        curl_easy_setopt(c->curl, CURLOPT_USERAGENT, c->useragent);
         curl_easy_setopt(c->curl, CURLOPT_MAXREDIRS, 50L);
         curl_easy_setopt(c->curl, CURLOPT_TCP_KEEPALIVE, 1L);
         curl_easy_setopt(c->curl, CURLOPT_HTTPHEADER, c->m_header);
@@ -310,8 +313,15 @@ bool curl_add_option(void* kodiBase, void* curl, int type, const char* name, con
                 std::string out;
                 c->post = 1;
                 Decode(value,strlen(value),c->m_postdata);
+                //printf("Post %d Bytes\n",strlen(value));
+                break;
+            }
+            else if (!strcmp("User-Agent",name)) {
+                c->useragent = strdup(value);
+                break;
             }
             else {
+                //printf("ADD Header %s: %s\n",name,value);
                 sprintf(tmp,"%s: %s",name,value); 
                 c->m_header = curl_slist_append(c->m_header, (const char *)tmp);
             }
@@ -325,8 +335,38 @@ bool curl_add_option(void* kodiBase, void* curl, int type, const char* name, con
     return true;
 }
 
-void close_file (void* kodiBase, void* curl) {
+void * open_file_for_write(void* kodi, const char *filename, bool overwrite) {
+    int i = get_curl_instance();
+    if (i == -1)
+        return nullptr;
+    //printf("Open Handle %d File %s\n",i,filename);
+    struct ch *c = &curlhandler[i]; 
+    if (overwrite)
+        c->fp = open(filename,O_CREAT|O_RDWR, 0644);
+    else
+        c->fp = open(filename,O_APPEND|O_RDWR, 0644);
+    c->curl = (void *)1;
+    printf("fp = %d\n",c->fp);
+    return c;
+}
+
+ssize_t write_file(void *kodi, void* curl, const void  *p, size_t size) {
     struct ch *c = (struct ch *)curl;
+    //printf("Filewrite %d bytes\n",size);
+    return write(c->fp,p,size);
+}
+
+void close_file (void* kodiBase, void* curl) {
+    
+    struct ch *c = (struct ch *)curl;
+
+    //printf("Close %p Curl %p fp %d\n",c,c->curl,c->fp);
+    if (c->fp >= 0 && c->curl == (void*)1) {
+        close(c->fp);
+        c->fp = -1;
+        c->curl = NULL;
+        return;
+    }
     curl_easy_cleanup(c->curl);
     curl_slist_free_all(c->m_header);
     if (c->streambuffer)

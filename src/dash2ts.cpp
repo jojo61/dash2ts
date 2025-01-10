@@ -85,7 +85,7 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer){
         do {
             ssize_t r = write(sockfd,rTsOutBuffer.data()+i*188,188);
             if (r < 0) {
-                printf("failure write %d\n",r);
+                //printf("failure write %d\n",r);
                 return;
             }
             else {
@@ -93,7 +93,7 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer){
             }
             
         } while (n < 188);
-        usleep(5);
+        usleep(3);
     }
     
     //myfile.write((const char *)rTsOutBuffer.data(),rTsOutBuffer.size());
@@ -119,6 +119,7 @@ main(int argc, char *argv[])
     AddonHandler h;
     std::string r;
     uint8_t b[50000];
+    char drm_string[500];
     bool audioseen = false;
     bool videoseen = false;
     int stuffed = 0;
@@ -137,6 +138,7 @@ main(int argc, char *argv[])
     unsigned char ADTS_Header[7];
     bool makepmt = true;
     char *url;
+    char *drm_token;
     INPUTSTREAM_INFO* stream;
 
     printf("-------Start---------\n");
@@ -149,11 +151,22 @@ main(int argc, char *argv[])
     NALUHeader.nalu = 9;
     NALUHeader.length[0] = 0x10;
 
-        url=strdup(argv[1]);
+    url=strdup(argv[1]);
     if (url == NULL || strlen(url) < 5) {
         printf("Using Test URL \n");
         url = test1;
     }
+
+    if (argc < 4) {
+        printf("No drm Token found \n");
+        drm_string[0] = 0;
+    }
+    else {
+        drm_token=strdup(argv[3]);
+        drm_token[strlen(drm_token)-1] = 0;
+        sprintf(drm_string,"com.widevine.alpha|https://drm.ors.at/acquire-license/widevine?BrandGuid=13f2e056-53fe-4469-ba6d-999970dbe549&userToken=%s|User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML. like Gecko) Chrome/116.0.0.0&Content-Type=application/octet-stream",drm_token+1);
+    }
+    printf("%s\n",drm_string);
 
     // Open output Socket
     portno = atoi(argv[2]);
@@ -196,12 +209,15 @@ main(int argc, char *argv[])
 
     //Provide the callback where TS packets are fed to
     lMuxer.tsOutCallback = std::bind(&muxOutput, std::placeholders::_1);
-
     ReadXML("/home/jojo/xbmc/xbmc/addons/inputstream.adaptive/resources/settings.xml");
     
     //h.AddProp("inputstream.adaptive.drm_legacy","com.widevine.alpha|https://licensing.bitmovin.com/licensing|User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F106.0.0.0+Safari%2F537.36");
-    h.AddProp("inputstream.adaptive.drm_legacy","com.widevine.alpha|https://drm-widevine-licensing.axtest.net/AcquireLicense|User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F106.0.0.0+Safari%2F537.36");
+    //h.AddProp("inputstream.adaptive.drm_legacy","com.widevine.alpha|https://drm.ors.at/acquire-license/widevine?BrandGuid=13f2e056-53fe-4469-ba6d-999970dbe549&userToken=B{SSM}|User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F106.0.0.0+Safari%2F537.36&Content-Type=application/octet-stream");
+    if (drm_string[0])
+        h.AddProp("inputstream.adaptive.drm_legacy",drm_string);
     AddSettingString(NULL,"DECRYPTERPATH","/home/jojo/.kodi/cdm");
+    AddSettingString(NULL,"debug.save.license","true");
+    //AddSettingString(NULL,"debug.save.manifest","true");
     h.LoadAddon("/home/jojo/xbmc/xbmc/addons/inputstream.adaptive/inputstream.adaptive.so.21.5.7");
     
     h.SetResolution(1920,1080);
@@ -242,7 +258,7 @@ main(int argc, char *argv[])
                     }
 
                     if (h.GetType(demux->iStreamId) == INPUTSTREAM_TYPE_VIDEO) {
-                        if ( !audioseen )
+                        if (!audioseen )
                            continue;
                         videoseen = true;
                         mpegts::EsFrame esFrame;
@@ -273,14 +289,14 @@ main(int argc, char *argv[])
                             stuffed++; 
                         }
                         else {
-#if 1
+#if 0
                             int sleep = (int)(demux->duration/1000.0) - 1 - ((GetusTicks()-lasttime) / 1000000);
                             if (sleep > 0 && sleep < (int)(demux->duration/1000.0))
                                usleep(sleep*1000);
                             else
                                 usleep(1000);
 #else
-                            usleep(1000);
+                            usleep(100);
 #endif
                         }
                         //printf("roundtrip %ld Duration %d\n",GetusTicks()-lasttime,(int)demux->duration);
@@ -294,6 +310,11 @@ main(int argc, char *argv[])
                         esFrame.mExpectedPesPacketLength = 0;
                         esFrame.mCompleted = true;
                         
+                        time_t now;
+	                    now = time(0);
+                        if ((now % 10) == 0)
+                            makepmt = true;  // send PMT every 10 sek
+
                         //Multiplex your data
                         lMuxer.encode(esFrame,0,makepmt);
                         makepmt = false;
