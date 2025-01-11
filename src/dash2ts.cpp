@@ -202,7 +202,7 @@ main(int argc, char *argv[])
     char *drm_token;
     INPUTSTREAM_INFO* stream;
 
-    printf("-------Start---------\n");
+   
 
     // Prepare NALU AUD
     NALUHeader.sync[0] = 0;
@@ -211,6 +211,13 @@ main(int argc, char *argv[])
     NALUHeader.sync[3] = 1;
     NALUHeader.nalu = 9;
     NALUHeader.length[0] = 0x10;
+
+    if (argc < 2) {
+        printf("Usage: dash2ts <url_to_manifest.mpd> <portnr> [drm_token]\n");
+        exit(0);
+    }
+
+    printf("-------Start---------\n");
 
     url=strdup(argv[1]);
     if (url == NULL || strlen(url) < 5) {

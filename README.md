@@ -71,4 +71,4 @@ Install:
 
 Known Bugs:
 -----------
-	DRM Streams are workin but very slow 
+	DRM Streams are working but very slow 
