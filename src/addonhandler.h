@@ -8,7 +8,7 @@ void addon_log_msg(const KODI_ADDON_BACKEND_HDL hdl,
                     const int level,
                     const char *msg)
 {
-    printf("Addon LOG: %s\n", msg);
+    //printf("Addon LOG: %s\n", msg);
 }
 
 void free_string(const KODI_ADDON_BACKEND_HDL hdl, char* str)

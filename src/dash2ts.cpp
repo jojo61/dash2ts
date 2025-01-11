@@ -13,6 +13,7 @@
 #include <fcntl.h>
 
 #include "mpegts/mpegts_muxer.h"
+#include "circular_buffer.hpp"
 
 #include "addons/kodi-dev-kit/include/kodi/versions.h"
 #include "addons/kodi-dev-kit/include/kodi/Filesystem.h"
@@ -64,13 +65,22 @@ static inline uint64_t GetusTicks(void) {
 #define PMT_PID 100
 
 
-
+static pthread_t SendThread; 
 int sockfd, portno, n;
 struct sockaddr_in serv_addr;
 struct hostent *server;
 
+typedef struct {
+    uint8_t *data;
+    int size;
+    int tag;
+} cbuf;
+
+// create Ringbuffer for output thread
+circular_buffer<cbuf, 10000> rbuf;
+
 //A callback where all the TS-packets are sent from the multiplexer
-void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer){
+void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
    //Double to fail at non integer data
    int n;
     int packets = rTsOutBuffer.size() / 188;
@@ -79,7 +89,7 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer){
         return;
     }
         
-    
+#if 0
     for (int i=0;i<(int)packets;i++) {
         n=0;
         do {
@@ -95,10 +105,65 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer){
         } while (n < 188);
         usleep(3);
     }
-    
+#else
+    cbuf buf;
+    buf.data = (uint8_t*)malloc(rTsOutBuffer.size());
+    buf.size = rTsOutBuffer.size();
+    buf.tag = tag;
+    memcpy(buf.data,rTsOutBuffer.data(),rTsOutBuffer.size());
+    while (rbuf.full()) {
+        usleep(20000);
+    }
+    rbuf.put(buf);
+    usleep(10);
+#endif    
+    rTsOutBuffer.clear();
     //myfile.write((const char *)rTsOutBuffer.data(),rTsOutBuffer.size());
     
 }
+
+
+void * Send_thread(void* dummy) {
+    uint64_t lasttime;
+    cbuf buf;
+    while (rbuf.size() < 75)
+        usleep(10);
+    for (;;) {
+        while (rbuf.empty()) {
+            usleep(10);  // wait 10 ms
+        }
+        auto value = rbuf.get();
+        buf = value.value();
+        int packets = buf.size / 188;
+        for (int i=0;i<packets;i++) {
+            int n=0;
+            do {
+                ssize_t r = write(sockfd,buf.data+i*188,188);
+                if (r < 0) {
+                    usleep(10);
+                    printf("failure write %d\n",r);
+                }
+                else {
+                    n += r;
+                }
+                
+            } while (n < 188);
+            usleep(6);
+        }
+        if (buf.tag) {
+            int sleep = (int)(40 - 2 - ((GetusTicks()-lasttime) / 1000000));
+            //printf("sleep %d\n",sleep);
+            if (sleep > 0 && sleep < 40)
+                usleep(sleep*1000);
+            else
+                usleep(1000);
+            lasttime = GetusTicks();
+        }
+        free(buf.data); 
+    }
+
+}
+
 
 struct {
     unsigned char  sync[4];
@@ -106,11 +171,7 @@ struct {
     unsigned char  length[1];
 } NALUHeader;
 
-struct {
-    unsigned char  sync[4];
-    unsigned char  nalu;
-    unsigned char  length[3];
-} NALU_EOS;
+
 
 int
 main(int argc, char *argv[])
@@ -118,12 +179,12 @@ main(int argc, char *argv[])
 
     AddonHandler h;
     std::string r;
-    uint8_t b[50000];
+    
     char drm_string[500];
     bool audioseen = false;
     bool videoseen = false;
     int stuffed = 0;
-    uint64_t lasttime;
+    
     bool firstvideo = true;
     
     
@@ -196,6 +257,8 @@ main(int argc, char *argv[])
         exit(0);
     }
 
+    pthread_create(&SendThread, NULL, Send_thread, NULL);
+
     //Create the map defining what datatype to map to what PID
     std::map<uint8_t, int> streamPidMap;
     streamPidMap[TYPE_AUDIO] = AUDIO_PID;
@@ -208,7 +271,7 @@ main(int argc, char *argv[])
     mpegts::MpegTsMuxer lMuxer(streamPidMap, PMT_PID, VIDEO_PID,mpegts::MpegTsMuxer::MuxType::segmentType);
 
     //Provide the callback where TS packets are fed to
-    lMuxer.tsOutCallback = std::bind(&muxOutput, std::placeholders::_1);
+    lMuxer.tsOutCallback = std::bind(&muxOutput, std::placeholders::_1,std::placeholders::_2);
     ReadXML("/home/jojo/xbmc/xbmc/addons/inputstream.adaptive/resources/settings.xml");
     
     //h.AddProp("inputstream.adaptive.drm_legacy","com.widevine.alpha|https://licensing.bitmovin.com/licensing|User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F106.0.0.0+Safari%2F537.36");
@@ -284,23 +347,6 @@ main(int argc, char *argv[])
                         esFrame.mDts = demux->dts/demux->duration;
                         esFrame.mPts *= 90*(demux->duration/1000);
                         esFrame.mDts *= 90*(demux->duration/1000);
-                        
-                        if (stuffed < 25) {   // Head start of 1 sek
-                            stuffed++; 
-                        }
-                        else {
-#if 0
-                            int sleep = (int)(demux->duration/1000.0) - 1 - ((GetusTicks()-lasttime) / 1000000);
-                            if (sleep > 0 && sleep < (int)(demux->duration/1000.0))
-                               usleep(sleep*1000);
-                            else
-                                usleep(1000);
-#else
-                            usleep(100);
-#endif
-                        }
-                        //printf("roundtrip %ld Duration %d\n",GetusTicks()-lasttime,(int)demux->duration);
-                        lasttime = GetusTicks();
 
                         //printf("pts %f %f Duration %f\n",demux->pts,demux->dts,demux->duration);
                         esFrame.mPcr = 0;
@@ -316,7 +362,7 @@ main(int argc, char *argv[])
                             makepmt = true;  // send PMT every 10 sek
 
                         //Multiplex your data
-                        lMuxer.encode(esFrame,0,makepmt);
+                        lMuxer.encode(esFrame,1,makepmt);
                         makepmt = false;
                         //myfile.write((const char *)m_convertBuffer,m_convertSize);
                         //printf("got %d Video\n",demux->iSize);
@@ -347,7 +393,7 @@ main(int argc, char *argv[])
                         esFrame.mCompleted = true;
 
                         //Multiplex your data
-                        lMuxer.encode(esFrame);
+                        lMuxer.encode(esFrame,0);
                         //printf("Write %d Audio Bytes ID: %d  \n ",demux->iSize,demux->iStreamId);
                     }
 
