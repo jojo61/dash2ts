@@ -164,7 +164,7 @@ public:
         handle = dlopen(addonlib, RTLD_LAZY);
         if (!handle)
         {
-            fprintf(stderr, "%s\n", dlerror());
+            fprintf(stderr, " Error Open inputstream-adaptive lib: %s\n", dlerror());
             exit(EXIT_FAILURE);
         }
 

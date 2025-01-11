@@ -212,7 +212,7 @@ main(int argc, char *argv[])
     NALUHeader.nalu = 9;
     NALUHeader.length[0] = 0x10;
 
-    if (argc < 2) {
+    if (argc < 3) {
         printf("Usage: dash2ts <url_to_manifest.mpd> <portnr> [drm_token]\n");
         exit(0);
     }
@@ -413,6 +413,9 @@ main(int argc, char *argv[])
             //myfile.close();
 
         }
+    }
+    else {
+        printf("Can't Open URL\n");
     }
 
     exit(EXIT_SUCCESS);
