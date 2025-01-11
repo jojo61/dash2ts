@@ -279,7 +279,7 @@ main(int argc, char *argv[])
     if (drm_string[0])
         h.AddProp("inputstream.adaptive.drm_legacy",drm_string);
     AddSettingString(NULL,"DECRYPTERPATH","/home/jojo/.kodi/cdm");
-    AddSettingString(NULL,"debug.save.license","true");
+    //AddSettingString(NULL,"debug.save.license","true");
     //AddSettingString(NULL,"debug.save.manifest","true");
     h.LoadAddon("/home/jojo/xbmc/xbmc/addons/inputstream.adaptive/inputstream.adaptive.so.21.5.7");
     
