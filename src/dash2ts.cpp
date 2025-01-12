@@ -199,8 +199,8 @@ main(int argc, char *argv[])
     bool makepmt = true;
     char *url;
     char *drm_token;
-    std::string xmlsettings = "/addons/inputstream-adaptive/resources/settings.xml";
-    std::string streamlib = "/addons/inputstream-adaptive/inputstream.adaptive.so.21.5.7";
+    std::string xmlsettings = "/addons/inputstream.adaptive/resources/settings.xml";
+    std::string streamlib = "/addons/inputstream.adaptive/inputstream.adaptive.so.21.5.7";
     std::string cdm = "/cdm";
     std::string path_to_kodi;
 
