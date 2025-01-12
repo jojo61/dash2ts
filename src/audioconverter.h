@@ -15,6 +15,7 @@ int channel_config;
 
 int ConvertAudioCodecProfile(int profile)
 {
+  printf("Audio Profile %d\n",profile);
   switch (profile)
   {
     case AACCodecProfileMAIN:
@@ -67,6 +68,8 @@ int ConvertAudioCodecProfile(int profile)
 }
 
 int ConvertRate(int rate) {
+    printf("Audio Rate %d\n",rate);
+    
     for (int i=0;i<13;i++) {
         if ( kSampleRates[i] == rate) {
             return i;
@@ -80,6 +83,7 @@ bool AudioConverterOpen(INPUTSTREAM_INFO* stream) {
     audio_object_type = ConvertAudioCodecProfile((int)stream->m_codecProfile);
     frequency_index = ConvertRate((int)stream->m_SampleRate);
     channel_config = stream->m_Channels == 8 ? 7 : stream->m_Channels;
+    printf("Audio Channels %d\n",channel_config);
     return true;
 }
 

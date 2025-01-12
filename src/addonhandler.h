@@ -50,7 +50,7 @@ KODI_HANDLE cb_get_stream_transfer(KODI_HANDLE handle,
                                        int streamId,
                                        INPUTSTREAM_INFO* stream) 
 {
-    //printf("get_stream_transfer Stream %d StreamType %d \nCodec %s KeySystem %d  %d-%d PID %d Profil %d Feature %04x Flags %04x ExtraSize %d\n"\
+    printf("get_stream_transfer Stream %d StreamType %d \nCodec %s KeySystem %d  %d-%d PID %d Profil %d Feature %04x Flags %04x ExtraSize %d\n"\
                                                             ,streamId\
                                                             ,stream->m_streamType\
                                                             ,stream->m_codecName\

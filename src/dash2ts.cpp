@@ -28,6 +28,8 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 }
 std::fstream myfile;
+bool videoconvert = true;
+
 #include "bitstreamconverter.h"
 #include "audioconverter.h"
 #include "demuxpacket.h"
@@ -77,7 +79,8 @@ typedef struct {
 } cbuf;
 
 // create Ringbuffer for output thread
-circular_buffer<cbuf, 10000> rbuf;
+circular_buffer<cbuf, 2000> rbuf;
+int duration;  // Duration of one Frame in ms
 
 //A callback where all the TS-packets are sent from the multiplexer
 void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
@@ -89,23 +92,6 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
         return;
     }
         
-#if 0
-    for (int i=0;i<(int)packets;i++) {
-        n=0;
-        do {
-            ssize_t r = write(sockfd,rTsOutBuffer.data()+i*188,188);
-            if (r < 0) {
-                //printf("failure write %d\n",r);
-                return;
-            }
-            else {
-                n += r;
-            }
-            
-        } while (n < 188);
-        usleep(3);
-    }
-#else
     cbuf buf;
     buf.data = (uint8_t*)malloc(rTsOutBuffer.size());
     buf.size = rTsOutBuffer.size();
@@ -116,48 +102,61 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
     }
     rbuf.put(buf);
     usleep(10);
-#endif    
+  
     rTsOutBuffer.clear();
     //myfile.write((const char *)rTsOutBuffer.data(),rTsOutBuffer.size());
     
+}
+
+void send_packet(uint8_t *p) {
+    do {
+        ssize_t r = write(sockfd,p,188);
+        if (r < 0) {
+            usleep(10);
+            //printf("failure write %d\n",r);
+        }
+        else {
+            n += r;
+        }
+        
+    } while (n < 188);
 }
 
 
 void * Send_thread(void* dummy) {
     uint64_t lasttime;
     cbuf buf;
-    while (rbuf.size() < 75)
+    int first=100; // send first 100 Video PES Packets without delay to stuff buffers
+
+    while (rbuf.size() < 200) // wait for at least 200 PES Packets
         usleep(10);
+    
     for (;;) {
         while (rbuf.empty()) {
             usleep(10);  // wait 10 ms
         }
         auto value = rbuf.get();
-        buf = value.value();
-        int packets = buf.size / 188;
+        buf = value.value();            // Get PES Packet
+        int packets = buf.size / 188;   // Calc TS Packets 
         for (int i=0;i<packets;i++) {
             int n=0;
-            do {
-                ssize_t r = write(sockfd,buf.data+i*188,188);
-                if (r < 0) {
-                    usleep(10);
-                    printf("failure write %d\n",r);
-                }
-                else {
-                    n += r;
-                }
-                
-            } while (n < 188);
+            send_packet(buf.data+i*188); // Send all TS Packets 
             usleep(6);
         }
         if (buf.tag) {
-            int sleep = (int)(40 - 2 - ((GetusTicks()-lasttime) / 1000000));
-            //printf("sleep %d\n",sleep);
-            if (sleep > 0 && sleep < 40)
-                usleep(sleep*1000);
-            else
-                usleep(1000);
-            lasttime = GetusTicks();
+            //printf("Anz PES Packets %d\n",rbuf.size());
+            if (first <= 0) {  // Delay only after first Bufferfilling Packets
+                int sleep = (int)(duration - 1 - ((GetusTicks()-lasttime) / 1000000));
+                //printf("sleep %d\n",sleep);
+                if (sleep > 0 && sleep < 40)
+                    usleep(sleep*1000);
+                else
+                    usleep(1000);
+                lasttime = GetusTicks();
+            }
+            else {
+                first--;
+            }
         }
         free(buf.data); 
     }
@@ -334,8 +333,9 @@ main(int argc, char *argv[])
                         mpegts::EsFrame esFrame;
 
                         //myfile.write((const char *) demux->pData,demux->iSize);
-
+                       
                         CBitstreamConverter(demux->pData,demux->iSize);
+                        
                         
                         //myfile.write((const char *) m_convertBuffer,m_convertSize);
                         
@@ -350,6 +350,7 @@ main(int argc, char *argv[])
                         }
                         esFrame.mData->append((const uint8_t *) m_convertBuffer,m_convertSize);
                         
+                        duration = demux->duration / 1000;
                         esFrame.mPts = demux->pts/demux->duration;
                         esFrame.mDts = demux->dts/demux->duration;
                         esFrame.mPts *= 90*(demux->duration/1000);
@@ -362,12 +363,12 @@ main(int argc, char *argv[])
                         esFrame.mPid = VIDEO_PID;
                         esFrame.mExpectedPesPacketLength = 0;
                         esFrame.mCompleted = true;
-                        
+#if 0                      
                         time_t now;
 	                    now = time(0);
                         if ((now % 10) == 0)
                             makepmt = true;  // send PMT every 10 sek
-
+#endif
                         //Multiplex your data
                         lMuxer.encode(esFrame,1,makepmt);
                         makepmt = false;
