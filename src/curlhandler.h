@@ -199,7 +199,7 @@ void * curl_create(void * base, const char *url) {
     int i = get_curl_instance();
     if (i == -1)
         return nullptr;
-    printf("Open Handle %d URL %s\n",i,url);
+    //printf("Open Handle %d URL %s\n",i,url);
     struct ch *c = &curlhandler[i];    
     c->curl = curl_easy_init();
     if (c->curl) {

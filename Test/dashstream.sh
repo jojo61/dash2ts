@@ -65,20 +65,15 @@ fi
 JSON=$(wget --header='Authorization: Basic b3JmX29uX3Y0MzpqRlJzYk5QRmlQU3h1d25MYllEZkNMVU41WU5aMjhtdA=='\
               --header='User_Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'\
               -q -O /tmp/channel.json $URL)
-#JSON=${CMD}
 drm_token=$(jq .drm_token /tmp/channel.json)
 EURL=$(jq .sources.dash /tmp/channel.json | grep qxa | cut -f1 -d ":" --complement | tr "\"," " " | cut -f1 -d "?")
 
-echo URL: $EURL
-echo Token: $drm_token
+#echo URL: $EURL
+#echo Token: $drm_token
 
+#killall dash2ts
 
+PATH="/storage/.kodi"
 
-/home/jojo/dash2ts/build/dash2ts ${EURL} ${PORT} ${drm_token} 
+/usr/local/bin/dash2ts/build/dash2ts ${EURL} ${PORT} ${PATH} ${drm_token} 
 
-#PID=${!}
-
-#trap 'kill -INT ${PID} 2> /dev/null' INT EXIT QUIT TERM
-
-# Waiting for the given PID to terminate
-#wait ${PID}

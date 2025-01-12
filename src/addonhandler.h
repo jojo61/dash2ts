@@ -82,7 +82,7 @@ KODI_HANDLE cb_get_stream_transfer(KODI_HANDLE handle,
     }
     
     if (stream->m_streamType == INPUTSTREAM_TYPE_VIDEO && stream->m_ExtraData && stream->m_ExtraSize) {
-        BitstreamConverterOpen(codec->id, (uint8_t*)stream->m_ExtraData, stream->m_ExtraSize, true);
+        videoconvert = BitstreamConverterOpen(codec->id, (uint8_t*)stream->m_ExtraData, stream->m_ExtraSize, true);
         myfile.write((const char *) stream->m_ExtraData, stream->m_ExtraSize);
     } else 
         if (stream->m_streamType == INPUTSTREAM_TYPE_AUDIO) {
@@ -112,7 +112,7 @@ public:
     AddonHandler() {}
     ~AddonHandler() { dlclose(handle); }
 
-    void LoadAddon(char *addonlib)
+    void LoadAddon(const char *addonlib)
     {
 
         kodi.inputstream = new AddonInstance_InputStream;

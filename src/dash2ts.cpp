@@ -199,8 +199,12 @@ main(int argc, char *argv[])
     bool makepmt = true;
     char *url;
     char *drm_token;
-    INPUTSTREAM_INFO* stream;
+    std::string xmlsettings = "/addons/inputstream-adaptive/resources/settings.xml";
+    std::string streamlib = "/addons/inputstream-adaptive/inputstream.adaptive.so.21.5.7";
+    std::string cdm = "/cdm";
+    std::string path_to_kodi;
 
+    INPUTSTREAM_INFO* stream;
    
 
     // Prepare NALU AUD
@@ -211,8 +215,8 @@ main(int argc, char *argv[])
     NALUHeader.nalu = 9;
     NALUHeader.length[0] = 0x10;
 
-    if (argc < 3) {
-        printf("Usage: dash2ts <url_to_manifest.mpd> <portnr> [drm_token]\n");
+    if (argc < 4) {
+        printf("Usage: dash2ts <url_to_manifest.mpd> <portnr> <path_to_kodi> [drm_token]\n");
         exit(0);
     }
 
@@ -224,14 +228,18 @@ main(int argc, char *argv[])
         url = test1;
     }
 
-    if (argc < 4) {
+    if (argc < 5) {
         printf("No drm Token found \n");
         drm_string[0] = 0;
     }
     else {
-        drm_token=strdup(argv[3]);
+        drm_token=strdup(argv[4]);
         drm_token[strlen(drm_token)-1] = 0;
         sprintf(drm_string,"com.widevine.alpha|https://drm.ors.at/acquire-license/widevine?BrandGuid=13f2e056-53fe-4469-ba6d-999970dbe549&userToken=%s|User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML. like Gecko) Chrome/116.0.0.0&Content-Type=application/octet-stream",drm_token+1);
+        
+        path_to_kodi.append(argv[3]);
+
+        printf("Path %s\n",path_to_kodi);
     }
     printf("%s\n",drm_string);
 
@@ -278,16 +286,20 @@ main(int argc, char *argv[])
 
     //Provide the callback where TS packets are fed to
     lMuxer.tsOutCallback = std::bind(&muxOutput, std::placeholders::_1,std::placeholders::_2);
-    ReadXML("/home/jojo/xbmc/xbmc/addons/inputstream.adaptive/resources/settings.xml");
+    std::string xml = path_to_kodi+xmlsettings;
+    ReadXML(xml.c_str());
     
     //h.AddProp("inputstream.adaptive.drm_legacy","com.widevine.alpha|https://licensing.bitmovin.com/licensing|User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F106.0.0.0+Safari%2F537.36");
     //h.AddProp("inputstream.adaptive.drm_legacy","com.widevine.alpha|https://drm.ors.at/acquire-license/widevine?BrandGuid=13f2e056-53fe-4469-ba6d-999970dbe549&userToken=B{SSM}|User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F106.0.0.0+Safari%2F537.36&Content-Type=application/octet-stream");
     if (drm_string[0])
         h.AddProp("inputstream.adaptive.drm_legacy",drm_string);
-    AddSettingString(NULL,"DECRYPTERPATH","/home/jojo/.kodi/cdm");
+    std::string decrypt = path_to_kodi+cdm;
+    AddSettingString(NULL,"DECRYPTERPATH",decrypt.c_str());
     //AddSettingString(NULL,"debug.save.license","true");
     //AddSettingString(NULL,"debug.save.manifest","true");
-    h.LoadAddon("/home/jojo/xbmc/xbmc/addons/inputstream.adaptive/inputstream.adaptive.so.21.5.7");
+    std::string addon = path_to_kodi+streamlib;
+    
+    h.LoadAddon(addon.c_str());
     
     h.SetResolution(1920,1080);
     
