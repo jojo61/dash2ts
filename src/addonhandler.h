@@ -8,7 +8,7 @@ void addon_log_msg(const KODI_ADDON_BACKEND_HDL hdl,
                     const int level,
                     const char *msg)
 {
-    //printf("Addon LOG: %s\n", msg);
+    if (verbose) printf("Addon LOG: %s\n", msg);
 }
 
 void free_string(const KODI_ADDON_BACKEND_HDL hdl, char* str)
@@ -112,7 +112,7 @@ public:
     AddonHandler() {}
     ~AddonHandler() { dlclose(handle); }
 
-    void LoadAddon(const char *addonlib)
+    void LoadAddon(std::string addonlib)
     {
 
         kodi.inputstream = new AddonInstance_InputStream;
@@ -149,6 +149,7 @@ public:
         m_interface.toKodi->kodi_filesystem->write_file = write_file;
         m_interface.toKodi->kodi_filesystem->get_file_download_speed = get_file_download_speed;
         m_interface.toKodi->kodi_filesystem->translate_special_protocol = translate_special_protocol;
+        m_interface.toKodi->kodi_filesystem->remove_directory = remove_directory;
 
         m_interface.toKodi->kodi_addon->get_user_path = get_user_path;
 
@@ -161,7 +162,7 @@ public:
         m_interface.toKodi->free_string_array = free_string_array;
         m_interface.toKodi->kodi_gui->general->get_adjust_refresh_rate_status = get_adjust_refresh_rate_status;
         
-        handle = dlopen(addonlib, RTLD_LAZY);
+        handle = dlopen(addonlib.c_str(), RTLD_LAZY);
         if (!handle)
         {
             fprintf(stderr, " Error Open inputstream-adaptive lib: %s\n", dlerror());
@@ -294,7 +295,7 @@ public:
         return -1;
     }
 
-    bool AddProp(const char *id, char *value)
+    bool AddProp(const char *id, const char *value)
     {
         props.m_ListItemProperties[props.m_nCountInfoValues].m_strKey = strdup(id);
         props.m_ListItemProperties[props.m_nCountInfoValues].m_strValue = strdup(value);

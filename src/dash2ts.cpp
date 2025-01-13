@@ -1,7 +1,9 @@
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <iostream>
+#include <filesystem>
 #include <vector>
 #include <fstream>
 #include <unistd.h>
@@ -29,6 +31,9 @@ extern "C" {
 }
 std::fstream myfile;
 bool videoconvert = true;
+bool verbose = false;
+std::string path_to_kodi;
+
 
 #include "bitstreamconverter.h"
 #include "audioconverter.h"
@@ -179,7 +184,7 @@ main(int argc, char *argv[])
     AddonHandler h;
     std::string r;
     
-    char drm_string[500];
+    
     bool audioseen = false;
     bool videoseen = false;
     int stuffed = 0;
@@ -197,13 +202,15 @@ main(int argc, char *argv[])
     struct DEMUX_PACKET* demux;
     unsigned char ADTS_Header[7];
     bool makepmt = true;
-    char *url;
-    char *drm_token;
+    char *url = NULL;
+    
     std::string xmlsettings = "/addons/inputstream.adaptive/resources/settings.xml";
-    std::string streamlib = "/addons/inputstream.adaptive/inputstream.adaptive.so.21.5.7";
+    std::string headers = "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML. like Gecko) Chrome/116.0.0.0&Content-Type=application/octet-stream";
+    std::string widevine_url ="https://drm.ors.at/acquire-license/widevine?BrandGuid=13f2e056-53fe-4469-ba6d-999970dbe549&userToken=";
+    std::string cenc = "com.widevine.alpha";
     std::string cdm = "/cdm";
-    std::string path_to_kodi;
-
+    std::string drm_token;
+    
     INPUTSTREAM_INFO* stream;
    
 
@@ -215,33 +222,47 @@ main(int argc, char *argv[])
     NALUHeader.nalu = 9;
     NALUHeader.length[0] = 0x10;
 
-    if (argc < 4) {
-        printf("Usage: dash2ts <url_to_manifest.mpd> <portnr> <path_to_kodi> [drm_token]\n");
+    printf("-------Start---------\n");
+    int c;
+    while ((c = getopt (argc, argv, "u:p:k:d:v")) != -1) {
+        switch (c) {
+            case 'u': // URL to Manifest
+                url = optarg;
+                continue;
+            case 'p': // Portnr
+                portno = atoi(optarg);
+                continue;
+            case 'k': // Path to Kodi
+                path_to_kodi.append(optarg);
+                continue;
+            case 'd': // drm token
+                drm_token.append(optarg);
+                Trim(drm_token,"\"");
+                continue;
+            case 'v': // Verbose
+                verbose = true;
+                continue;
+            default:
+                printf("Unknown option '%c'\n", optopt);
+                return 0;
+        }
+        break;
+    }
+
+    if (!url) {
+        printf("Usage: dash2ts -f url_to_manifest.mpd -p portnr [-k path_to_kodi] [-d drm_token] [-v]\n");
+        printf("       path_to_kodi default is /storage/.kodi");
         exit(0);
     }
 
-    printf("-------Start---------\n");
+    if (!path_to_kodi.size())  // no path set
+        path_to_kodi = "/storage/.kodi";  // Use default
 
-    url=strdup(argv[1]);
-    if (url == NULL || strlen(url) < 5) {
-        printf("Using Test URL \n");
-        url = test1;
+    if (verbose) {
+        printf("Path %s\n",path_to_kodi.c_str());
+        printf("drm_token: %s\n",drm_token.c_str());
+        printf("Server Port %d \n",portno);
     }
-
-    if (argc < 5) {
-        printf("No drm Token found \n");
-        drm_string[0] = 0;
-    }
-    else {
-        drm_token=strdup(argv[4]);
-        drm_token[strlen(drm_token)-1] = 0;
-        sprintf(drm_string,"com.widevine.alpha|https://drm.ors.at/acquire-license/widevine?BrandGuid=13f2e056-53fe-4469-ba6d-999970dbe549&userToken=%s|User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML. like Gecko) Chrome/116.0.0.0&Content-Type=application/octet-stream",drm_token+1);
-        
-        path_to_kodi.append(argv[3]);
-
-        printf("Path %s\n",path_to_kodi);
-    }
-    printf("%s\n",drm_string);
 
     // Open output Socket
     portno = atoi(argv[2]);
@@ -250,12 +271,13 @@ main(int argc, char *argv[])
         printf("ERROR opening socket\n");
         exit(0);
     }
+
     server = gethostbyname("127.0.0.1");
     if (server == NULL) {
         fprintf(stderr,"ERROR, no such host\n");
         exit(0);
     }
-    //printf("Server Port %d \n",portno);
+    
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     bcopy((char *)server->h_addr, 
@@ -291,22 +313,49 @@ main(int argc, char *argv[])
     
     //h.AddProp("inputstream.adaptive.drm_legacy","com.widevine.alpha|https://licensing.bitmovin.com/licensing|User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F106.0.0.0+Safari%2F537.36");
     //h.AddProp("inputstream.adaptive.drm_legacy","com.widevine.alpha|https://drm.ors.at/acquire-license/widevine?BrandGuid=13f2e056-53fe-4469-ba6d-999970dbe549&userToken=B{SSM}|User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F106.0.0.0+Safari%2F537.36&Content-Type=application/octet-stream");
-    if (drm_string[0])
-        h.AddProp("inputstream.adaptive.drm_legacy",drm_string);
+    
+    if (drm_token.size()) {
+        std::string prop = cenc + "|" + widevine_url + drm_token + "|" + headers;
+        //h.AddProp("inputstream.adaptive.drm_legacy",prop.c_str());
+        prop = widevine_url + drm_token + "|" + headers + "|R{SSM}|R";
+        h.AddProp("inputstream.adaptive.license_key",prop.c_str());
+        h.AddProp("inputstream.adaptive.license_type",cenc.c_str());
+    }
+
     std::string decrypt = path_to_kodi+cdm;
     AddSettingString(NULL,"DECRYPTERPATH",decrypt.c_str());
-    //AddSettingString(NULL,"debug.save.license","true");
-    //AddSettingString(NULL,"debug.save.manifest","true");
-    std::string addon = path_to_kodi+streamlib;
-    
-    h.LoadAddon(addon.c_str());
+
+    AddSettingString(NULL,"debug.save.license","false");   
+    AddSettingString(NULL,"debug.save.manifest","false");  
+
+    h.AddProp("inputstream.adaptive.stream_selection_type","adaptive");
+
+    std::string path = path_to_kodi + "/addons/inputstream.adaptive";
+    std::string addon;
+
+    // serach for inputstream.adaptive lib
+    for (const auto & entry : std::filesystem::directory_iterator(path)) {
+        std::string tmp = entry.path();
+        if ( tmp.find("inputstream.adaptive.so.") != std::string::npos && tmp.size() > addon.size())
+            addon = entry.path();
+    }
+
+    if (!addon.size()) {
+        printf(" Did not find any inputstream.adaptive lib\n");
+        exit(0);
+    }
+
+    if(verbose)
+        printf("Use lib: %s\n",addon.c_str());
+        
+    h.LoadAddon(addon);
     
     h.SetResolution(1920,1080);
     
     bool ret = h.OpenAddon(url);
 
     if (ret) {
-        printf("Sucessfull opened Addon\n");
+        if (verbose) printf("Sucessfull opened Addon\n");
         h.GetCapabilities();
         
         if (h.GetStreamIDs()) {
@@ -330,7 +379,7 @@ main(int argc, char *argv[])
 
                     //printf("PTS %f Disptime %d StreamId %p\n",demux->pts,demux->duration,demux->iStreamId);
                     if (demux->iStreamId == DMX_SPECIALID_STREAMCHANGE) {
-                        printf("STREAMCHANGE DETECTED Size \n");
+                        if (verbose) printf("STREAMCHANGE DETECTED Size \n");
                         
                         CBitstreamConverterClose();
                         h.OpenStream(IDs.m_streamIds[ID]);

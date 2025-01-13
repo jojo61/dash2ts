@@ -46,10 +46,10 @@ to edit the path to dash2ts and the path to Kodi in the file.
 Run:
 ----
 	If you want to test dash2ts directly, you can start it with:
-	dash2ts <url_to_manifest> <portnr> <path_to_kodi> [drm_token]
+	dash2ts -u <url_to_manifest> -p <portnr> [-k <path_to_kodi>] [-d drm_token] [-v]
 	where
 	  portnr is the UDP Port where the TS Data will be send
-	  path_to_kodi is the path to the addon directory of Kodi e.g /storage/.kodi
+	  path_to_kodi is the path to the addon directory of Kodi default is /storage/.kodi
 	  drm_token is the user_token for widevine to get the decoding Keys
 
 DRM:

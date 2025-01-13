@@ -199,7 +199,7 @@ void * curl_create(void * base, const char *url) {
     int i = get_curl_instance();
     if (i == -1)
         return nullptr;
-    //printf("Open Handle %d URL %s\n",i,url);
+    if (verbose) printf("Open Handle %d URL %s\n",i,url);
     struct ch *c = &curlhandler[i];    
     c->curl = curl_easy_init();
     if (c->curl) {
@@ -339,14 +339,13 @@ void * open_file_for_write(void* kodi, const char *filename, bool overwrite) {
     int i = get_curl_instance();
     if (i == -1)
         return nullptr;
-    //printf("Open Handle %d File %s\n",i,filename);
+    if (verbose) printf("Open Handle %d File %s\n",i,filename);
     struct ch *c = &curlhandler[i]; 
     if (overwrite)
         c->fp = open(filename,O_CREAT|O_RDWR, 0644);
     else
         c->fp = open(filename,O_APPEND|O_RDWR, 0644);
     c->curl = (void *)1;
-    printf("fp = %d\n",c->fp);
     return c;
 }
 
@@ -429,14 +428,18 @@ char ** get_property_values(void* kodiBase, void* curl, int type, const char* na
 
 char * translate_special_protocol(void * kodiBase, const char *proto) {
     char *c = strdup("");
-    printf("translate >%s<\n",proto);
+    //printf("translate >%s<\n",proto);
     c = strdup(proto);
     return c;
 }
 
 char * get_user_path(void * kodiBase) {
-    char *c = strdup("home/jojo");
+    char *c = strdup(path_to_kodi.c_str());
     return c;
+} 
+
+bool remove_directory(void * kodiBase, const char *dir) {
+    return true;
 } 
 
 

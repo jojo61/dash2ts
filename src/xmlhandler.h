@@ -100,9 +100,13 @@ using namespace tinyxml2;
         *value = false;
         int idx = FindId(id);
         if ( idx >= 0) {
-            if (!strcmp(settings[idx].deflt,"true"));
-              *value = true;
-            return true;
+            if (!strcmp(settings[idx].deflt,"true")) {
+                *value = true;
+                return true;
+            }
+            else {
+                return false;
+            }
         }
         return false;
     }
