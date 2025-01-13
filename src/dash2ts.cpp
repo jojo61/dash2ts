@@ -265,7 +265,6 @@ main(int argc, char *argv[])
     }
 
     // Open output Socket
-    portno = atoi(argv[2]);
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) {
         printf("ERROR opening socket\n");
