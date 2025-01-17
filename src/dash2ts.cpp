@@ -210,6 +210,7 @@ main(int argc, char *argv[])
     unsigned char ADTS_Header[7];
     bool makepmt = true;
     char *url = NULL;
+    int api_version = 0;
     
     std::string xmlsettings = "/addons/inputstream.adaptive/resources/settings.xml";
     
@@ -244,8 +245,10 @@ main(int argc, char *argv[])
                 path_to_kodi.append(optarg);
                 continue;
             case 'd': // drm token
-                drm_token.append(optarg);
-                Trim(drm_token,"\"");
+                if (strcmp(optarg,"null")) {
+                    drm_token.append(optarg);
+                    Trim(drm_token,"\"");
+                }
                 continue;
             case 'w': // Widevine URL
                 widevine_url.append(optarg);
@@ -327,32 +330,10 @@ main(int argc, char *argv[])
     //h.AddProp("inputstream.adaptive.drm_legacy","com.widevine.alpha|https://licensing.bitmovin.com/licensing|User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F106.0.0.0+Safari%2F537.36");
     //h.AddProp("inputstream.adaptive.drm_legacy","com.widevine.alpha|https://drm.ors.at/acquire-license/widevine?BrandGuid=13f2e056-53fe-4469-ba6d-999970dbe549&userToken=B{SSM}|User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F106.0.0.0+Safari%2F537.36&Content-Type=application/octet-stream");
     
-    if (drm_token.size()) {
-        std::string prop = cenc + "|" + orf_widevine_url + drm_token + "|" + headers;
-        //h.AddProp("inputstream.adaptive.drm_legacy",prop.c_str());
-        prop = orf_widevine_url + drm_token + "|" + headers + "|R{SSM}|R";
-        h.AddProp("inputstream.adaptive.license_key",prop.c_str());
-        h.AddProp("inputstream.adaptive.license_type",cenc.c_str());
-    } else if (widevine_url.size()) {
-        std::string prop = cenc + "|" + widevine_url + "|" + headers;
-        //h.AddProp("inputstream.adaptive.drm_legacy",prop.c_str());
-        prop = widevine_url + "|" + headers + "|R{SSM}|R";
-        h.AddProp("inputstream.adaptive.license_key",prop.c_str());
-        h.AddProp("inputstream.adaptive.license_type",cenc.c_str());
-    }
-
-    std::string decrypt = path_to_kodi+cdm;
-    AddSettingString(NULL,"DECRYPTERPATH",decrypt.c_str());
-
-    AddSettingString(NULL,"debug.save.license","false");   
-    AddSettingString(NULL,"debug.save.manifest","false");  
-
-    h.AddProp("inputstream.adaptive.stream_selection_type","adaptive");
-
+    // serach for inputstream.adaptive lib
     std::string path = path_to_kodi + "/addons/inputstream.adaptive";
     std::string addon;
 
-    // serach for inputstream.adaptive lib
     for (const auto & entry : std::filesystem::directory_iterator(path)) {
         std::string tmp = entry.path();
         if ( tmp.find("inputstream.adaptive.so.") != std::string::npos && tmp.size() > addon.size())
@@ -363,10 +344,52 @@ main(int argc, char *argv[])
         printf(" Did not find any inputstream.adaptive lib\n");
         exit(0);
     }
+    if (addon.find(".so.21.4") != std::string::npos) {
+        api_version = 0;
+    }
+    if (addon.find(".so.21.5") != std::string::npos) {
+        api_version = 1;
+    }
+    if (addon.find(".so.22.") != std::string::npos) {
+        api_version = 2;
+    }
 
-    if(verbose)
-        printf("Use lib: %s\n",addon.c_str());
+    if (verbose) printf("Use lib: %s \nwith API Version %d\n",addon.c_str(),api_version);
+
+    // Make Properties for inputsream-adaptive
+    if (drm_token.size()) {
+        std::string prop = cenc + "|" + orf_widevine_url + drm_token + "|" + headers;
+        if (api_version >= 1) {
+            h.AddProp("inputstream.adaptive.drm_legacy",prop.c_str());
+        } else {
+            prop = orf_widevine_url + drm_token + "|" + headers + "|R{SSM}|R";
+            h.AddProp("inputstream.adaptive.license_key",prop.c_str());
+            h.AddProp("inputstream.adaptive.license_type",cenc.c_str());
+        }
+    } else if (widevine_url.size()) {
+        std::string prop = cenc + "|" + widevine_url + "|" + headers;
+        if (api_version >= 1) {
+            h.AddProp("inputstream.adaptive.drm_legacy",prop.c_str());
+        } else {
+            prop = widevine_url + "|" + headers + "|R{SSM}|R";
+            h.AddProp("inputstream.adaptive.license_key",prop.c_str());
+            h.AddProp("inputstream.adaptive.license_type",cenc.c_str());
+        }
+    }
+    h.AddProp("inputstream.adaptive.stream_selection_type","adaptive");
+
+    // Make Settings
+    std::string decrypt = path_to_kodi+cdm;
+    AddSettingString(NULL,"DECRYPTERPATH",decrypt.c_str());
+    AddSettingString(NULL,"debug.save.license","false");   
+    AddSettingString(NULL,"debug.save.manifest","false");  
+
+    
+    
+
+    
         
+    // Finally Load the Addon
     h.LoadAddon(addon);
     
     h.SetResolution(1920,1080);
