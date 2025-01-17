@@ -292,6 +292,7 @@ static int nal_bs_read_ue(nal_bitstream *bs)
   return ((1 << i) - 1 + nal_bs_read(bs, i));
 }
 
+#if 0
 // read signed Exp-Golomb code
 static int nal_bs_read_se(nal_bitstream *bs)
 {
@@ -303,6 +304,7 @@ static int nal_bs_read_se(nal_bitstream *bs)
 
   return i;
 }
+#endif
 
 static bool has_sei_recovery_point(const uint8_t *p, const uint8_t *end)
 {
@@ -757,7 +759,7 @@ bool BitstreamConvert(uint8_t* pData, int iSize, uint8_t **poutbuf, int *poutbuf
       const uint8_t* buf_to_write = buf;
       int32_t final_nal_size = nal_size;
 
-      bool containsHdr10Plus{false};
+      //bool containsHdr10Plus{false};
 
       if (!m_sps_pps_context.first_idr && IsSlice(unit_type))
       {

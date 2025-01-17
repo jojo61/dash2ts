@@ -115,7 +115,7 @@ extern "C"
 
 void* AlignedMalloc(size_t s, size_t alignTo)
 {
-  void* p;
+  void* p=NULL;
   posix_memalign(&p, alignTo, s);
 
   return p;

@@ -174,13 +174,16 @@ public:
         // cosine = (double (*)(double)) dlsym(handle, "open");
 
         createfunc = (int (*)(void *))dlsym(handle, "ADDON_Create");
-        if (error = dlerror())
+        error = dlerror();
+        if (error)
             printf("Error %s\n", error);
         gettypeversionfunc = (char *(*)(int))dlsym(handle, "ADDON_GetTypeVersion");
-        if (error = dlerror())
+        error = dlerror();
+        if (error)
             printf("Error %s\n", error);
         gettypeminversionfunc = (char *(*)(int))dlsym(handle, "ADDON_GetTypeMinVersion");
-        if (error = dlerror())
+        error = dlerror();
+        if (error)
             printf("Error %s\n", error);
 #if 0
         for (int i = 0; i < 6; i++)

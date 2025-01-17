@@ -67,7 +67,7 @@ int ConvertAudioCodecProfile(int profile)
   }
 }
 
-int ConvertRate(int rate) {
+int ConvertRate(uint32_t rate) {
     printf("Audio Rate %d\n",rate);
     
     for (int i=0;i<13;i++) {

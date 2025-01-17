@@ -103,7 +103,7 @@ ssize_t read_file(void* KodiBase, void* curl, void *ptr, size_t size) {
         return -1;              // Error in Fileread
     if (readsize == 0) 
         return 0;               // EOF
-    if (readsize > size)
+    if (readsize > (int)size)
         readsize = size;       // no enough readbuffer avail.
     if (c->readptr + readsize > c->maxstreambuffer) 
         return -1;              // should not happen

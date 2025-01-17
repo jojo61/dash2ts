@@ -89,9 +89,7 @@ int duration;  // Duration of one Frame in ms
 
 //A callback where all the TS-packets are sent from the multiplexer
 void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
-   //Double to fail at non integer data
-   int n;
-    int packets = rTsOutBuffer.size() / 188;
+       
     if (rTsOutBuffer.size() % 188) {
         printf("packetsize wrong\n");
         return;
@@ -144,7 +142,6 @@ void * Send_thread(void* dummy) {
         buf = value.value();            // Get PES Packet
         int packets = buf.size / 188;   // Calc TS Packets 
         for (int i=0;i<packets;i++) {
-            int n=0;
             send_packet(buf.data+i*188); // Send all TS Packets 
             usleep(6);
         }
@@ -184,20 +181,17 @@ main(int argc, char *argv[])
     AddonHandler h;
     std::string r;
     
-    
     bool audioseen = false;
-    bool videoseen = false;
-    int stuffed = 0;
-    
     bool firstvideo = true;
     
-    
+#if 0
     char *test1 = "https://livesim.dashif.org/livesim/chunkdur_1/ato_7/testpic4_8s/Manifest.mpd";
     char *test2 = "https://apasfiis.sf.apa.at/dash/cms-worldwide/2024-12-08_1734_tl_02_Advent-in-Vorar_____14254423__o__1040094888__s15775910_0__ORF2BHD_17335613P_18215516P_QXB.mp4/manifest.mpd";
     char *test3 = "http://localhost/video/manifest.mpd";
     char *test4 = "https://orf3-247.mdn.ors.at/orf/orf3/qxa-247/manifest.mpd";
     char *test5 = "https://orf2-247.mdn.ors.at/orf/orf2/qxa-247/manifest.mpd";
     char *test6 = "https://media.axprod.net/TestVectors/v6.1-MultiDRM-MultiKey/Manifest_1080p.mpd";
+#endif
     int ID = 0;
     struct DEMUX_PACKET* demux;
     unsigned char ADTS_Header[7];
@@ -389,7 +383,7 @@ main(int argc, char *argv[])
                     if (h.GetType(demux->iStreamId) == INPUTSTREAM_TYPE_VIDEO) {
                         if (!audioseen )
                            continue;
-                        videoseen = true;
+                        
                         mpegts::EsFrame esFrame;
 
                         //myfile.write((const char *) demux->pData,demux->iSize);

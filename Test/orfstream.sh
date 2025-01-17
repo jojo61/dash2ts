@@ -1,11 +1,11 @@
 #!/bin/sh
 #
-# iptvstream.sh can be used by the VDR iptv plugin to transcode external
+# orfstream.sh can be used by the VDR iptv plugin to transcode external
 # sources
 #
-# (C) 2007 Rolf Ahrenberg, Antti Seppälä
+# (C) 2025 jojo61
 #
-# iptvstream.sh is free software; you can redistribute it and/or modify
+# orfstream.sh is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
@@ -46,7 +46,7 @@ case ${PARAMETER} in
         ;;
     2)
         #URL="https://orf2-247.mdn.ors.at/orf/orf2/qxa-247/manifest.mpd"
-	URL="https://api-tvthek.orf.at/api/v4.3/livestream/14378920"
+	URL="https://api-tvthek.orf.at/api/v4.3/livestream/14390185" # Orf 2 Salzburg
         ;;
     3)
         #URL="https://orf3-247.mdn.ors.at/orf/orf3/qxa-247/manifest.mpd"
@@ -67,8 +67,8 @@ if [ -z "${URL}" ]; then
 fi
 
 JSON=$(wget --header='Authorization: Basic b3JmX29uX3Y0MzpqRlJzYk5QRmlQU3h1d25MYllEZkNMVU41WU5aMjhtdA=='\
-              --header='User_Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'\
-              -q -O /tmp/channel.json $URL)
+            --header='User_Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'\
+            -q -O /tmp/channel.json $URL)
 
 drm_token=$(jq .drm_token /tmp/channel.json)
 EURL=$(jq .sources.dash /tmp/channel.json | grep qxa | cut -f4 -d "\"") 
@@ -76,7 +76,6 @@ EURL=$(jq .sources.dash /tmp/channel.json | grep qxa | cut -f4 -d "\"")
 #echo URL: $EURL
 #echo Token: $drm_token
 
-#killall dash2ts
 
 KODIPATH="/storage/.kodi"
 
