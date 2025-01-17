@@ -83,6 +83,8 @@ typedef struct {
     int tag;
 } cbuf;
 
+std::string headers = "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML. like Gecko) Chrome/116.0.0.0&Content-Type=application/octet-stream";
+
 // create Ringbuffer for output thread
 circular_buffer<cbuf, 2000> rbuf;
 int duration;  // Duration of one Frame in ms
@@ -172,7 +174,18 @@ struct {
     unsigned char  length[1];
 } NALUHeader;
 
-
+void usage() {
+    printf("Usage: dash2ts -f url_to_manifest.mpd\n");
+    printf("               -p portnr\n");
+    printf("              [-k path_to_kodi]\n");
+    printf("              [-h http_headers]\n");
+    printf("              [-d drm_token] or [-w widevine_url]\n");
+    printf("              [-v] \n");
+    printf("       path_to_kodi default is /storage/.kodi\n");
+    printf("       http_headers default is %s\n",headers.c_str());
+    printf("       only -d or -w is allowed. Not both\n");
+    exit(0);
+}
 
 int
 main(int argc, char *argv[])
@@ -199,11 +212,12 @@ main(int argc, char *argv[])
     char *url = NULL;
     
     std::string xmlsettings = "/addons/inputstream.adaptive/resources/settings.xml";
-    std::string headers = "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML. like Gecko) Chrome/116.0.0.0&Content-Type=application/octet-stream";
-    std::string widevine_url ="https://drm.ors.at/acquire-license/widevine?BrandGuid=13f2e056-53fe-4469-ba6d-999970dbe549&userToken=";
+    
+    std::string orf_widevine_url ="https://drm.ors.at/acquire-license/widevine?BrandGuid=13f2e056-53fe-4469-ba6d-999970dbe549&userToken=";
     std::string cenc = "com.widevine.alpha";
     std::string cdm = "/cdm";
     std::string drm_token;
+    std::string widevine_url;
     
     INPUTSTREAM_INFO* stream;
    
@@ -218,7 +232,7 @@ main(int argc, char *argv[])
 
     printf("-------Start---------\n");
     int c;
-    while ((c = getopt (argc, argv, "u:p:k:d:v")) != -1) {
+    while ((c = getopt (argc, argv, "u:p:k:d:w:h:v")) != -1) {
         switch (c) {
             case 'u': // URL to Manifest
                 url = optarg;
@@ -233,20 +247,26 @@ main(int argc, char *argv[])
                 drm_token.append(optarg);
                 Trim(drm_token,"\"");
                 continue;
+            case 'w': // Widevine URL
+                widevine_url.append(optarg);
+                Trim(widevine_url,"\"");
+                continue;
+            case 'h': // Set new Headers
+                headers.clear();
+                headers.append(optarg);
+                continue;
             case 'v': // Verbose
                 verbose = true;
-                continue;
+                continue;             
             default:
-                printf("Unknown option '%c'\n", optopt);
-                return 0;
+                usage();
+                exit(0);
         }
         break;
     }
 
-    if (!url) {
-        printf("Usage: dash2ts -f url_to_manifest.mpd -p portnr [-k path_to_kodi] [-d drm_token] [-v]\n");
-        printf("       path_to_kodi default is /storage/.kodi");
-        exit(0);
+    if (!url || (drm_token.size() && widevine_url.size()) || !headers.size()) {
+        usage();
     }
 
     if (!path_to_kodi.size())  // no path set
@@ -308,9 +328,15 @@ main(int argc, char *argv[])
     //h.AddProp("inputstream.adaptive.drm_legacy","com.widevine.alpha|https://drm.ors.at/acquire-license/widevine?BrandGuid=13f2e056-53fe-4469-ba6d-999970dbe549&userToken=B{SSM}|User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F106.0.0.0+Safari%2F537.36&Content-Type=application/octet-stream");
     
     if (drm_token.size()) {
-        std::string prop = cenc + "|" + widevine_url + drm_token + "|" + headers;
+        std::string prop = cenc + "|" + orf_widevine_url + drm_token + "|" + headers;
         //h.AddProp("inputstream.adaptive.drm_legacy",prop.c_str());
-        prop = widevine_url + drm_token + "|" + headers + "|R{SSM}|R";
+        prop = orf_widevine_url + drm_token + "|" + headers + "|R{SSM}|R";
+        h.AddProp("inputstream.adaptive.license_key",prop.c_str());
+        h.AddProp("inputstream.adaptive.license_type",cenc.c_str());
+    } else if (widevine_url.size()) {
+        std::string prop = cenc + "|" + widevine_url + "|" + headers;
+        //h.AddProp("inputstream.adaptive.drm_legacy",prop.c_str());
+        prop = widevine_url + "|" + headers + "|R{SSM}|R";
         h.AddProp("inputstream.adaptive.license_key",prop.c_str());
         h.AddProp("inputstream.adaptive.license_type",cenc.c_str());
     }
