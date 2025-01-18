@@ -103,6 +103,7 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
     buf.tag = tag;
     memcpy(buf.data,rTsOutBuffer.data(),rTsOutBuffer.size());
     while (rbuf.full()) {
+        //printf("rbuf is full\n");
         usleep(20000);
     }
     rbuf.put(buf);
@@ -148,14 +149,15 @@ void * Send_thread(void* dummy) {
             usleep(6);
         }
         if (buf.tag) {
-            //printf("Anz PES Packets %d\n",rbuf.size());
+            //if (rbuf.size() < 50)
+            //   printf("Anz PES Packets %d\n",rbuf.size());
             if (first <= 0) {  // Delay only after first Bufferfilling Packets
-                int sleep = (int)(duration - 1 - ((GetusTicks()-lasttime) / 1000000));
+                int sleep = (int)(duration - 0 - ((GetusTicks()-lasttime) / 1000000));
                 //printf("sleep %d\n",sleep);
-                if (sleep > 0 && sleep < 40)
+                if (sleep > 0 && sleep <= 40)
                     usleep(sleep*1000);
                 else
-                    usleep(1000);
+                    usleep(duration*1000);
                 lasttime = GetusTicks();
             }
             else {
@@ -357,21 +359,22 @@ main(int argc, char *argv[])
     if (verbose) printf("Use lib: %s \nwith API Version %d\n",addon.c_str(),api_version);
 
     // Make Properties for inputsream-adaptive
-    if (drm_token.size()) {
-        std::string prop = cenc + "|" + orf_widevine_url + drm_token + "|" + headers;
-        if (api_version >= 1) {
-            h.AddProp("inputstream.adaptive.drm_legacy",prop.c_str());
-        } else {
-            prop = orf_widevine_url + drm_token + "|" + headers + "|R{SSM}|R";
-            h.AddProp("inputstream.adaptive.license_key",prop.c_str());
-            h.AddProp("inputstream.adaptive.license_type",cenc.c_str());
-        }
-    } else if (widevine_url.size()) {
+    if (widevine_url.size()) {
         std::string prop = cenc + "|" + widevine_url + "|" + headers;
         if (api_version >= 1) {
             h.AddProp("inputstream.adaptive.drm_legacy",prop.c_str());
         } else {
             prop = widevine_url + "|" + headers + "|R{SSM}|R";
+            h.AddProp("inputstream.adaptive.license_key",prop.c_str());
+            h.AddProp("inputstream.adaptive.license_type",cenc.c_str());
+        }
+        
+    } else {
+        std::string prop = cenc + "|" + orf_widevine_url + drm_token + "|" + headers;
+        if (api_version >= 1) {
+            h.AddProp("inputstream.adaptive.drm_legacy",prop.c_str());
+        } else {
+            prop = orf_widevine_url + drm_token + "|" + headers + "|R{SSM}|R";
             h.AddProp("inputstream.adaptive.license_key",prop.c_str());
             h.AddProp("inputstream.adaptive.license_type",cenc.c_str());
         }

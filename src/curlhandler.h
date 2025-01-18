@@ -134,6 +134,7 @@ bool ParseLine(const std::string& headerLine,struct ch *c)
         for (HeaderParams::const_iterator iter = c->m_params.begin(); iter != c->m_params.end(); ++iter) {
             if (iter->first.c_str() && iter->first == strParam) {
                 c->m_params.erase(iter);
+                --iter;
             }
         }
         c->m_params.emplace_back(strParam, strValue);
