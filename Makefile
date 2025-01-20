@@ -13,6 +13,7 @@ SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s')
 # As an example, ./your_dir/hello.cpp turns into ./build/./your_dir/hello.cpp.o
 #OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 OBJS := ./build/./src/dash2ts.cpp.o\
+		./build/./src/streamplayer.cpp.o\
 	    ./build/./src/mpegts/mpegts_muxer.cpp.o\
 		./build/./src/mpegts/simple_buffer.cpp.o\
 		./build/./src/mpegts/common.cpp.o\

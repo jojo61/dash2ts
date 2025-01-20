@@ -2,8 +2,6 @@
 #define DMX_SPECIALID_STREAMINFO -10
 #define DMX_SPECIALID_STREAMCHANGE -11
 
-
-
 void addon_log_msg(const KODI_ADDON_BACKEND_HDL hdl,
                     const int level,
                     const char *msg)
@@ -82,8 +80,7 @@ KODI_HANDLE cb_get_stream_transfer(KODI_HANDLE handle,
     }
     
     if (stream->m_streamType == INPUTSTREAM_TYPE_VIDEO && stream->m_ExtraData && stream->m_ExtraSize) {
-        videoconvert = BitstreamConverterOpen(codec->id, (uint8_t*)stream->m_ExtraData, stream->m_ExtraSize, true);
-        myfile.write((const char *) stream->m_ExtraData, stream->m_ExtraSize);
+        BitstreamConverterOpen(codec->id, (uint8_t*)stream->m_ExtraData, stream->m_ExtraSize, true);
     } else 
         if (stream->m_streamType == INPUTSTREAM_TYPE_AUDIO) {
            AudioConverterOpen(stream);
@@ -92,29 +89,18 @@ KODI_HANDLE cb_get_stream_transfer(KODI_HANDLE handle,
     return nullptr;
 }
 
-class AddonHandler
-{
-    KODI_ADDON_INSTANCE_STRUCT kodi = {};
-    AddonGlobalInterface m_interface = {};
-    INPUTSTREAM_PROPERTY props = {};
-    
+std::string path;
 
-private:
-    void *handle;
-    int (*createfunc)(void *);
-    char *(*gettypeversionfunc)(int);
-    char *(*gettypeminversionfunc)(int);
-    char *error;
 
-public:
-    // void addon_log_msg(const KODI_ADDON_BACKEND_HDL hdl, const int level, const char *msg);
-    // void OpenAddon(char * lib);
-    AddonHandler() {}
-    ~AddonHandler() { dlclose(handle); }
+    AddonHandler::AddonHandler(std::string path_to_kodi) {
+        path = path_to_kodi;
+    }
 
-    void LoadAddon(std::string addonlib)
+    AddonHandler::~AddonHandler() { dlclose(handle); }
+
+    int AddonHandler::LoadAddon()
     {
-
+        int api_version;
         kodi.inputstream = new AddonInstance_InputStream;
         kodi.inputstream->props = new AddonProps_InputStream;
         kodi.inputstream->toAddon = new KodiToAddonFuncTable_InputStream;
@@ -151,7 +137,7 @@ public:
         m_interface.toKodi->kodi_filesystem->translate_special_protocol = translate_special_protocol;
         m_interface.toKodi->kodi_filesystem->remove_directory = remove_directory;
 
-        m_interface.toKodi->kodi_addon->get_user_path = get_user_path;
+        m_interface.toKodi->kodi_addon->get_user_path = AddonHandler::get_user_path;
 
         kodi.inputstream->toKodi->free_demux_packet = cb_free_demux_packet;
         kodi.inputstream->toKodi->allocate_demux_packet = cb_allocate_demux_packet;
@@ -161,8 +147,34 @@ public:
         m_interface.toKodi->free_string = free_string;
         m_interface.toKodi->free_string_array = free_string_array;
         m_interface.toKodi->kodi_gui->general->get_adjust_refresh_rate_status = get_adjust_refresh_rate_status;
-        
-        handle = dlopen(addonlib.c_str(), RTLD_LAZY);
+
+        // serach for inputstream.adaptive lib
+        std::string libpath = path + "/addons/inputstream.adaptive";
+        std::string addon;
+
+        for (const auto & entry : std::filesystem::directory_iterator(libpath)) {
+            std::string tmp = entry.path();
+            if ( tmp.find("inputstream.adaptive.so.") != std::string::npos && tmp.size() > addon.size())
+                addon = entry.path();
+        }
+
+        if (!addon.size()) {
+            printf(" Did not find any inputstream.adaptive lib\n");
+            exit(0);
+        }
+  
+        if (addon.find(".so.21.4") != std::string::npos) {
+            api_version = 0;
+        }
+        if (addon.find(".so.21.5") != std::string::npos) {
+            api_version = 1;
+        }
+        if (addon.find(".so.22.") != std::string::npos) {
+            api_version = 2;
+        }
+
+        handle = dlopen(addon.c_str(), RTLD_LAZY);
+
         if (!handle)
         {
             fprintf(stderr, " Error Open inputstream-adaptive lib: %s\n", dlerror());
@@ -171,20 +183,18 @@ public:
 
         dlerror(); /* Clear any existing error */
 
-        // cosine = (double (*)(double)) dlsym(handle, "open");
-
         createfunc = (int (*)(void *))dlsym(handle, "ADDON_Create");
         error = dlerror();
         if (error)
-            printf("Error %s\n", error);
+            printf("Error in find ADDON_Create %s\n", error);
         gettypeversionfunc = (char *(*)(int))dlsym(handle, "ADDON_GetTypeVersion");
         error = dlerror();
         if (error)
-            printf("Error %s\n", error);
+            printf("Error in find ADDON_GetTypeVersion %s\n", error);
         gettypeminversionfunc = (char *(*)(int))dlsym(handle, "ADDON_GetTypeMinVersion");
         error = dlerror();
         if (error)
-            printf("Error %s\n", error);
+            printf("Error in find ADDON_GetTypeMinVersion %s\n", error);
 #if 0
         for (int i = 0; i < 6; i++)
         {
@@ -211,11 +221,22 @@ public:
 
         status = m_interface.toAddon->create_instance(m_interface.addonBase, &kodi);
         //printf("Get instance status %d\n", status);
-
+        return api_version;
     }
 
-    bool OpenAddon(char *url) {
-        
+    bool AddonHandler::OpenURL(char *url) {
+
+        // Prepare settings from xml File
+        std::string xmlfile = path +"/addons/inputstream.adaptive/resources/settings.xml";
+        LoadXML(xmlfile);
+        AddProp("inputstream.adaptive.stream_selection_type","adaptive");
+
+        // Make Settings
+        std::string decrypt = path+"/cdm";
+        AddSettingString(NULL,"DECRYPTERPATH",decrypt.c_str());
+        AddSettingString(NULL,"debug.save.license","false");   
+        AddSettingString(NULL,"debug.save.manifest","false");  
+
         props.m_strURL = url;
         props.m_mimeType = "";
         //props.m_nCountInfoValues = 0;
@@ -225,41 +246,41 @@ public:
         return status;
     }
 
-    void SetResolution(unsigned int width,unsigned int height) {
+    void AddonHandler::SetResolution(unsigned int width,unsigned int height) {
         kodi.inputstream->toAddon->set_video_resolution(kodi.inputstream, width,height,width,height);
     }
 
-    bool GetStreamIDs() {   
+    bool AddonHandler::GetStreamIDs() {   
         max_ID_type=0;  // Reset ID Mapping 
         if (kodi.inputstream->toAddon->get_stream_ids(kodi.inputstream,&IDs))
             return true;
         return false;
     }
 
-    void EnableStream(int streamID, bool enable) {
+    void AddonHandler::EnableStream(int streamID, bool enable) {
         kodi.inputstream->toAddon->enable_stream(kodi.inputstream,streamID,enable);
     }
 
-    void OpenStream(int streamID) {
+    void AddonHandler::OpenStream(int streamID) {
         kodi.inputstream->toAddon->open_stream(kodi.inputstream,streamID);
     }
 
-    void Close() {
+    void AddonHandler::Close() {
         kodi.inputstream->toAddon->close(kodi.inputstream);
     }
 
-    void DemuxFlush() {
+    void AddonHandler::DemuxFlush() {
         kodi.inputstream->toAddon->demux_flush(kodi.inputstream);
     }
 
-    int GetCapabilities() {
+    int AddonHandler::GetCapabilities() {
         struct INPUTSTREAM_CAPABILITIES caps;
         kodi.inputstream->toAddon->get_capabilities(kodi.inputstream,&caps);
         printf("Capabilities %04x\n",caps.m_mask);
         return caps.m_mask;
     }
 
-    INPUTSTREAM_INFO* GetStream(int streamId) const
+    void* AddonHandler::GetStream(int streamId) const
     {
         
         KODI_HANDLE demuxStream = nullptr;
@@ -268,12 +289,10 @@ public:
         if (!ret || stream.m_streamType == INPUTSTREAM_TYPE_NONE)
             return nullptr;
 
-        //printf("Getstream Extra Data %p Size %d\n",stream.m_ExtraData,stream.m_ExtraSize);
-
         return &stream;
     }
 
-    struct DEMUX_PACKET* DemuxRead() 
+    struct DEMUX_PACKET* AddonHandler::DemuxRead() 
     {
         struct DEMUX_PACKET* demux;
 
@@ -281,7 +300,7 @@ public:
         return demux;
     }
 
-    int Read(uint8_t* buf, int buf_size)
+    int AddonHandler::Read(uint8_t* buf, int buf_size)
     {
         if (!kodi.inputstream->toAddon->read_stream)
             return -2;
@@ -289,7 +308,7 @@ public:
         return kodi.inputstream->toAddon->read_stream(kodi.inputstream, buf, buf_size);
     }
 
-    int GetType(int ID)
+    int AddonHandler::GetType(int ID)
     {
         for (int i=0;i<max_ID_type;i++) {
             if (ID_type[i].ID == ID)
@@ -298,11 +317,28 @@ public:
         return -1;
     }
 
-    bool AddProp(const char *id, const char *value)
+    char * AddonHandler::get_user_path(void * kodiBase) {
+        char *c = strdup(path.c_str());
+        return c;
+    } 
+
+    bool AddonHandler::AddProp(const char *id, const char *value)
     {
         props.m_ListItemProperties[props.m_nCountInfoValues].m_strKey = strdup(id);
         props.m_ListItemProperties[props.m_nCountInfoValues].m_strValue = strdup(value);
         props.m_nCountInfoValues++;
         return true;
     }
-};
+
+    bool AddonHandler::AddSettingString(void *hdl, char *id, const char * value) {
+        settings[n_settings].id = strdup(id);
+        settings[n_settings].deflt = strdup(value);
+        n_settings++;
+        return true;
+    }
+
+    int AddonHandler::LoadXML(std::string xmlfile) {
+        return ReadXML(xmlfile.c_str());
+    }
+    
+

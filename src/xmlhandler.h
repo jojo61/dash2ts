@@ -111,11 +111,5 @@ using namespace tinyxml2;
         return false;
     }
 
-    bool AddSettingString(void *hdl, char *id, const char * value) {
-        settings[n_settings].id = strdup(id);
-        settings[n_settings].deflt = strdup(value);
-        n_settings++;
-        return true;
-    }
 
     

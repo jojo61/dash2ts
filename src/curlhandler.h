@@ -434,10 +434,7 @@ char * translate_special_protocol(void * kodiBase, const char *proto) {
     return c;
 }
 
-char * get_user_path(void * kodiBase) {
-    char *c = strdup(path_to_kodi.c_str());
-    return c;
-} 
+
 
 bool remove_directory(void * kodiBase, const char *dir) {
     return true;
