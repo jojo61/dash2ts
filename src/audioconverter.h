@@ -13,19 +13,30 @@ int audio_object_type;
 int frequency_index;
 int channel_config;
 
+enum {
+  CodecProfileMAIN = 27,
+  CodecProfileLOW,
+  CodecProfileSSR,
+  CodecProfileLTP
+};
+
 int ConvertAudioCodecProfile(int profile)
 {
+
   printf("Audio Profile %d\n",profile);
   switch (profile)
   {
-    case AACCodecProfileMAIN:
-      return 1;
-    case AACCodecProfileLOW:
+    case 0:
       return 2;
-    case AACCodecProfileSSR:
+    case CodecProfileMAIN:
+      return 1;
+    case CodecProfileLOW:
+      return 2;
+    case CodecProfileSSR:
       return 3;
-    case AACCodecProfileLTP:
+    case CodecProfileLTP:
       return 4;
+
 #if 0
     case AACCodecProfileHE:
       return FF_PROFILE;
@@ -63,7 +74,7 @@ int ConvertAudioCodecProfile(int profile)
 #endif
     default:
       printf("Unknown Audio Profile %d\n",profile);
-      return 1;
+      return 2;
   }
 }
 

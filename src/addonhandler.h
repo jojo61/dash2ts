@@ -40,6 +40,7 @@ struct {
     int type;
 } ID_type[INPUTSTREAM_MAX_STREAM_COUNT];
 int max_ID_type=0;
+bool running = false;
 
 INPUTSTREAM_INFO stream{};
 
@@ -66,6 +67,10 @@ KODI_HANDLE cb_get_stream_transfer(KODI_HANDLE handle,
     ID_type[max_ID_type].ID = streamId;
     ID_type[max_ID_type].type = stream->m_streamType;
     max_ID_type++;
+    
+    if (!running)
+        return nullptr;
+
 
     if (stream->m_streamType != INPUTSTREAM_TYPE_TELETEXT &&
         stream->m_streamType != INPUTSTREAM_TYPE_RDS && 
@@ -89,6 +94,18 @@ KODI_HANDLE cb_get_stream_transfer(KODI_HANDLE handle,
     return nullptr;
 }
 
+    void AddonHandler::SelectStreams(int *videoid, int*audioid) {
+        for (int i=0;i< max_ID_type;i++) {
+            if (ID_type[i].type == 1) {
+                *videoid = i;
+            }
+            if (ID_type[i].type == 2 && *audioid == -1) {
+                *audioid = i;
+            }
+        }
+        return;
+    }
+
 std::string path;
 
 
@@ -100,7 +117,7 @@ std::string path;
 
     int AddonHandler::LoadAddon()
     {
-        int api_version;
+        int api_version=0;
         kodi.inputstream = new AddonInstance_InputStream;
         kodi.inputstream->props = new AddonProps_InputStream;
         kodi.inputstream->toAddon = new KodiToAddonFuncTable_InputStream;
@@ -136,8 +153,12 @@ std::string path;
         m_interface.toKodi->kodi_filesystem->get_file_download_speed = get_file_download_speed;
         m_interface.toKodi->kodi_filesystem->translate_special_protocol = translate_special_protocol;
         m_interface.toKodi->kodi_filesystem->remove_directory = remove_directory;
+        m_interface.toKodi->kodi_filesystem->get_directory = get_directory;
+        m_interface.toKodi->kodi_filesystem->create_directory = create_directory;
+        m_interface.toKodi->kodi_filesystem->free_directory = free_directory;
 
         m_interface.toKodi->kodi_addon->get_user_path = AddonHandler::get_user_path;
+        m_interface.toKodi->kodi_addon->get_addon_info = get_addon_info;
 
         kodi.inputstream->toKodi->free_demux_packet = cb_free_demux_packet;
         kodi.inputstream->toKodi->allocate_demux_packet = cb_allocate_demux_packet;
@@ -172,6 +193,8 @@ std::string path;
         if (addon.find(".so.22.") != std::string::npos) {
             api_version = 2;
         }
+
+        if (verbose) printf("Open lib %s\n",addon.c_str());
 
         handle = dlopen(addon.c_str(), RTLD_LAZY);
 
@@ -228,9 +251,11 @@ std::string path;
 
         // Prepare settings from xml File
         std::string xmlfile = path +"/addons/inputstream.adaptive/resources/settings.xml";
+        std::string addonpath = path +"/addons/inputstream.adaptive";
         LoadXML(xmlfile);
         AddProp("inputstream.adaptive.stream_selection_type","adaptive");
-
+        AddProp("inputstream.adaptive.manifest_type","mpd");
+        
         // Make Settings
         std::string decrypt = path+"/cdm";
         AddSettingString(NULL,"DECRYPTERPATH",decrypt.c_str());
@@ -238,7 +263,9 @@ std::string path;
         AddSettingString(NULL,"debug.save.manifest","false");  
 
         props.m_strURL = url;
-        props.m_mimeType = "";
+        props.m_mimeType = "application/dash+xml";
+        props.m_profileFolder = strdup(addonpath.c_str());
+        props.m_libFolder = strdup(addonpath.c_str());
         //props.m_nCountInfoValues = 0;
         
         bool status = kodi.inputstream->toAddon->open(kodi.inputstream, &props);
@@ -258,6 +285,7 @@ std::string path;
     }
 
     void AddonHandler::EnableStream(int streamID, bool enable) {
+        running = true;
         kodi.inputstream->toAddon->enable_stream(kodi.inputstream,streamID,enable);
     }
 

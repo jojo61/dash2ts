@@ -1,6 +1,10 @@
 # Thanks to Job Vranish (https://spin.atomicobject.com/2016/08/26/makefile-c-projects/)
 TARGET_EXEC := dash2ts
 
+# use either the default include for KODI addon header files
+# or overwrite the include directory on the command line
+KODI_ADDON_INCLUDE ?= src/addons/kodi-dev-kit/include
+
 BUILD_DIR := ./build
 SRC_DIRS := ./src
 
@@ -25,10 +29,8 @@ OBJS := ./build/./src/dash2ts.cpp.o\
 # As an example, ./build/hello.cpp.o turns into ./build/hello.cpp.d
 DEPS := $(OBJS:.o=.d)
 
-# Every folder in ./src will need to be passed to GCC so that it can find header files
-INC_DIRS := $(shell find $(SRC_DIRS) -type d)
 # Add a prefix to INC_DIRS. So moduleA would become -ImoduleA. GCC understands this -I flag
-INC_FLAGS := $(addprefix -I,$(INC_DIRS)) -I./src/kodi-dev-kit/include -I/usr/local/include
+INC_FLAGS := -I$(KODI_ADDON_INCLUDE) -I/usr/local/include
 
 # The -MMD and -MP flags together generate Makefiles for us!
 # These files will have .d instead of .o as the output.

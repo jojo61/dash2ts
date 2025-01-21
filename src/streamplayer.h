@@ -4,8 +4,8 @@
 #include <thread>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include "addons/kodi-dev-kit/include/kodi/c-api/addon_base.h"
-#include "addons/kodi-dev-kit/include/kodi/c-api/addon-instance/inputstream.h"
+#include "kodi/c-api/addon_base.h"
+#include "kodi/c-api/addon-instance/inputstream.h"
 #include "mpegts/mpegts_muxer.h"
 
 
@@ -46,6 +46,7 @@ public:
     bool AddProp(const char *, const char *);
     bool AddSettingString(void *, char *, const char * );
     int LoadXML(std::string );
+    void SelectStreams(int *, int*);
     
 };
 

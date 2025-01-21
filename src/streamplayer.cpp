@@ -20,11 +20,11 @@
 #include "mpegts/mpegts_muxer.h"
 #include "circular_buffer.hpp"
 
-#include "addons/kodi-dev-kit/include/kodi/versions.h"
-#include "addons/kodi-dev-kit/include/kodi/Filesystem.h"
-#include "addons/kodi-dev-kit/include/kodi/c-api/gui/general.h"
-#include "addons/kodi-dev-kit/include/kodi/c-api/addon_base.h"
-#include "addons/kodi-dev-kit/include/kodi/c-api/addon-instance/inputstream.h"
+#include "kodi/versions.h"
+#include "kodi/Filesystem.h"
+#include "kodi/c-api/gui/general.h"
+#include "kodi/c-api/addon_base.h"
+#include "kodi/c-api/addon-instance/inputstream.h"
 
 extern "C" {
 #include <libavutil/avutil.h>
@@ -226,7 +226,7 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
     }
 
     void StreamPlayer::StreamPlay(AddonHandler *h) {
-
+        int VideoID=-1,AudioID=-1;
         m_thread = std::thread (&StreamPlayer::Send_thread,this);
 
         if (verbose) printf("Sucessfull opened Addon\n");
@@ -234,16 +234,23 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
         
         if (h->GetStreamIDs()) {
             BitstreamConverterInit();
-            printf("No. Streams %d ID0 %d ID1 %d\n",IDs.m_streamCount,IDs.m_streamIds[0],IDs.m_streamIds[1]);
+            
+            for (int i=0;i<IDs.m_streamCount;i++) {
+                if (verbose) printf("No. ID%d %d\n",i,IDs.m_streamIds[i]);
+                h->GetStream(IDs.m_streamIds[i]);   // Build ID Table:
+            }
 
-            h->EnableStream(IDs.m_streamIds[ID],true);  // Enable Video Stream
-            h->OpenStream(IDs.m_streamIds[ID]);
+            h->SelectStreams(&VideoID,&AudioID);
+            
+            
+            h->EnableStream(IDs.m_streamIds[VideoID],true);  // Enable Video Stream
+            h->OpenStream(IDs.m_streamIds[VideoID]);
 
-            h->EnableStream(IDs.m_streamIds[ID+1],true); // Enable Audio Stream
-            h->OpenStream(IDs.m_streamIds[ID+1]);
+            h->EnableStream(IDs.m_streamIds[AudioID],true); // Enable Audio Stream
+            h->OpenStream(IDs.m_streamIds[AudioID]);
 
-            h->GetStream(IDs.m_streamIds[ID]);  // Trigger start
-            h->GetStream(IDs.m_streamIds[ID+1]);
+            h->GetStream(IDs.m_streamIds[VideoID]);  // Trigger start
+            h->GetStream(IDs.m_streamIds[AudioID]);
 
             do {
                 

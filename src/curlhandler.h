@@ -1,6 +1,6 @@
 #include <curl/curl.h>
 #include <string>
-#include "addons/kodi-dev-kit/include/kodi/c-api/filesystem.h"
+#include "kodi/c-api/filesystem.h"
 #include "StringUtils.h"
 
 #define BUFFERMAX 2000000
@@ -427,18 +427,84 @@ char ** get_property_values(void* kodiBase, void* curl, int type, const char* na
     return nullptr;
 }
 
+extern std::string path;
 char * translate_special_protocol(void * kodiBase, const char *proto) {
     char *c = strdup("");
+    if (!strcmp("special://xbmcbinaddons/inputstream.adaptive/",proto)) {
+        std::string newpath = path + "/addons/inputstream.adaptive";
+        c = strdup(newpath.c_str());
+        printf("new path %s\n",c);
+        return c;
+    }
     //printf("translate >%s<\n",proto);
     c = strdup(proto);
     return c;
 }
 
 
-
 bool remove_directory(void * kodiBase, const char *dir) {
+    if (verbose)
+        printf("Remove Directory %s\n",dir);
     return true;
 } 
+
+bool create_directory(void * kodiBase, const char *dir) {
+    if (verbose)
+        printf("Test and Create Directory %s\n",dir);
+    return true;
+} 
+
+char * get_addon_info(void * kodiBase, const char *item) {
+    if (verbose)
+        printf("Get Addon Info Item %s \n",item);
+    return nullptr;
+} 
+
+std::string mypath,myfile;
+void SplitFilename (const std::string& str)
+{
+  
+  std::size_t found = str.find_last_of("/\\");
+  mypath =  str.substr(0,found);
+  myfile =  str.substr(found+1);
+}
+
+bool get_directory(void * kodiBase, 
+                    const char *path,
+                    const char* mask, 
+                    struct VFSDirEntry** items, 
+                    unsigned int* num_items) {
+    if (verbose)
+        printf("Read Directory %s\n",path);
+
+    static VFSDirEntry item;
+    std::string dirpath = path;
+    std::size_t pos;
+    *num_items=0;
+    *items = &item;
+    if (!strcmp(path,""))
+       return true;
+
+    for (const auto & entry : std::filesystem::directory_iterator(dirpath)) {
+        std::string tmp = entry.path();
+        if ( tmp.find("ssd_") != std::string::npos) {
+            SplitFilename(tmp);
+            item.label = strdup(myfile.c_str());
+            item.path = strdup(tmp.c_str());
+            if (verbose) printf("Got File %s in %s\n",item.label,item.path);
+            *num_items = 1;
+            *items = &item;
+            return true;
+        }
+    }
+    return false;
+} 
+
+void free_directory(void* kodiBase, struct VFSDirEntry* items, unsigned int num_items) {
+    return ;
+}
+
+
 
 
 
