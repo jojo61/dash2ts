@@ -37,7 +37,7 @@ Quickstart:
 
 
 Download the Git Repository. Then run make in zattoo. This will create a build directory.
-The Tool is named zattoo. 
+The Tool is named zattoostream. 
 
 In der Test directory you will find a sample script for IPTV..
 You need to copy the zattoostream.sh file to the iptv plugin directory. Also you have
@@ -47,9 +47,9 @@ Run:
 ----
 	First install the Zattoo plugin in Kodi and finalize the Setup. Make shure you can 
 	view Zattoo Channels in Kodi.
-	Then run zattoostream -c 
+	Then run zattoostream -k <path_to_kodi> -c 
 	This will print a channels.conf for VDR with all receivable Zattoo channels. You 
-	could also run zattoostream -c >channels.conf 
+	could also run zattoostream -k <path_to_kodi> -c >channels.conf 
 	Then copy the channels you want to see (or the complete channels.conf) into the
 	channels.conf from VDR.
 	Thats it.
