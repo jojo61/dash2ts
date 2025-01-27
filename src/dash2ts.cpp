@@ -104,14 +104,18 @@ main(int argc, char *argv[])
 
     // Make Properties for inputstream-adaptive
     if (widevine_url.size()) {
+#if 0
         std::string prop = cenc + "|" + widevine_url + "|" + headers;
         if (api_version >= 1) {
             h->AddProp("inputstream.adaptive.drm_legacy",prop.c_str());
         } else {
+        
             prop = widevine_url + "|" + headers + "|R{SSM}|R";
+#endif
+            std::string prop = widevine_url;
             h->AddProp("inputstream.adaptive.license_key",prop.c_str());
             h->AddProp("inputstream.adaptive.license_type",cenc.c_str());
-        } 
+        //} 
     } else {
         std::string prop = cenc + "|" + orf_widevine_url + drm_token + "|" + headers;
         if (api_version >= 1) {

@@ -1,10 +1,18 @@
 #include <curl/curl.h>
 #include <string>
+#include <unistd.h>
+#include <filesystem>
+#include <algorithm>
 #include "kodi/c-api/filesystem.h"
 #include "StringUtils.h"
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define BUFFERMAX 2000000
 #define MAX_INSTANCE 10
+
+
+extern int verbose;
 
 typedef std::pair<std::string, std::string> HeaderParamValue;
 typedef std::vector<HeaderParamValue> HeaderParams;
@@ -20,6 +28,7 @@ HeaderParams m_params;
 unsigned char *streambuffer=NULL;
 int maxstreambuffer;
 int writeptr,readptr;
+char *m_cookie;
 void *curl;
 std::string m_postdata;
 int post;
@@ -244,7 +253,11 @@ bool curl_open(void *base, void *curl, unsigned int flags) {
         //curl_easy_setopt(c->curl, CURLOPT_DEBUGFUNCTION, debug_callback);
         curl_easy_setopt(c->curl, CURLOPT_VERBOSE, CURL_OFF);
         curl_easy_setopt(c->curl, CURLOPT_COOKIEFILE, "");
-        curl_easy_setopt(c->curl, CURLOPT_COOKIELIST, "FLUSH");
+        if (c->m_cookie) {
+            curl_easy_setopt(c->curl, CURLOPT_COOKIE, c->m_cookie);
+        }
+        else
+            curl_easy_setopt(c->curl, CURLOPT_COOKIELIST, "FLUSH");
         curl_easy_setopt(c->curl, CURLOPT_REFERER, NULL);
         curl_easy_setopt(c->curl, CURLOPT_AUTOREFERER, CURL_OFF);
         curl_easy_setopt(c->curl, CURLOPT_CONNECTTIMEOUT, 10L);
@@ -259,7 +272,7 @@ bool curl_open(void *base, void *curl, unsigned int flags) {
         curl_easy_getinfo(c->curl, CURLINFO_TOTAL_TIME, &elapsed);
         curl_easy_getinfo(c->curl, CURLINFO_EFFECTIVE_URL, &eurl);
         curl_easy_getinfo(c->curl, CURLINFO_SCHEME, &scheme);
-
+        c->post = false;
         //printf("eurl %s\n",eurl);
         //printf("Scheme %s\n",scheme);
         //printf("Response %ld\n",response_code);
@@ -304,7 +317,7 @@ void Decode(const char* input, unsigned int length, std::string &output)
   }
 }
 
-bool curl_add_option(void* kodiBase, void* curl, int type, const char* name, const char* value){
+bool curl_add_option(void* kodiBase, void* curl, int type, const char* name, std::string value){
     struct ch *c = (struct ch *)curl;
     switch (type) {
         case ADDON_CURL_OPTION_HEADER:
@@ -313,23 +326,29 @@ bool curl_add_option(void* kodiBase, void* curl, int type, const char* name, con
             if (!strcmp("postdata",name)) {
                 std::string out;
                 c->post = 1;
-                Decode(value,strlen(value),c->m_postdata);
-                //printf("Post %d Bytes\n",strlen(value));
+                Decode(value.c_str(),value.size(),c->m_postdata);
+                //printf("Post %d Bytes\n",value.size());
                 break;
             }
             else if (!strcmp("User-Agent",name)) {
-                c->useragent = strdup(value);
+                c->useragent = strdup(value.c_str());
+                break;
+            }
+            else if (!strcmp("Cookie",name)) {
+                //printf("ADD Cookie %s: %s\n",name,value.c_str());
+                sprintf(tmp,"%s: %s",name,value.c_str()); 
+                c->m_cookie = strdup(value.c_str());
                 break;
             }
             else {
-                //printf("ADD Header %s: %s\n",name,value);
-                sprintf(tmp,"%s: %s",name,value); 
+                //printf("ADD Header %s: %s\n",name,value.c_str());
+                sprintf(tmp,"%s: %s",name,value.c_str()); 
                 c->m_header = curl_slist_append(c->m_header, (const char *)tmp);
             }
             //printf("Option: %s\n",tmp);
             break;
         default:
-            printf("Add Unknown Option Type %d Name %s Value %s\n",type,name,value);
+            printf("Add Unknown Option Type %d Name %s Value %s\n",type,name,value.c_str());
             return false;
             break;
     }
@@ -375,7 +394,22 @@ void close_file (void* kodiBase, void* curl) {
     c->m_header=NULL;
     c->curl = NULL;
     c->m_params.clear();
+    c->m_cookie = NULL;
     //printf("close_file\n");
+}
+
+void free_string_array(const void* hdl,
+                                    char** arr,
+                                    int numElements)
+{
+    if (arr)
+    {
+        for (int i = 0; i < numElements; ++i)
+        {
+        free(arr[i]);
+        }
+        free(arr);
+    }
 }
 
 char ** get_property_values(void* kodiBase, void* curl, int type, const char* name, int* numvalues)
@@ -425,6 +459,23 @@ char ** get_property_values(void* kodiBase, void* curl, int type, const char* na
     }
 
     return nullptr;
+}
+
+const std::string GetPropertyValues(void *file, int type,
+                                                const std::string& name)
+{
+int numValues = 0;
+char** res = get_property_values(0,file,type, name.c_str(), &numValues);
+if (res && numValues == 1)
+{
+    std::string vecReturn;
+    
+    vecReturn.append(res[0]);
+
+    free_string_array(file, res, numValues);
+    return vecReturn;
+}
+return std::string();
 }
 
 extern std::string path;

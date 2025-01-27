@@ -242,7 +242,6 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
 
             h->SelectStreams(&VideoID,&AudioID);
             
-            
             h->EnableStream(IDs.m_streamIds[VideoID],true);  // Enable Video Stream
             h->OpenStream(IDs.m_streamIds[VideoID]);
 
@@ -251,6 +250,8 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
 
             h->GetStream(IDs.m_streamIds[VideoID]);  // Trigger start
             h->GetStream(IDs.m_streamIds[AudioID]);
+
+            mpegts::EsFrame esFrame;
 
             do {
                 
@@ -273,7 +274,7 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
                         if (!audioseen )
                            continue;
                         
-                        mpegts::EsFrame esFrame;
+                        //mpegts::EsFrame esFrame;
 
                         CBitstreamConverter(demux->pData,demux->iSize);
                          
@@ -294,7 +295,6 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
                         esFrame.mPts *= 90*(demux->duration/1000);
                         esFrame.mDts *= 90*(demux->duration/1000);
 
-                        //printf("pts %f %f Duration %f\n",demux->pts,demux->dts,demux->duration);
                         esFrame.mPcr = 0;
                         esFrame.mStreamType = TYPE_VIDEO;
                         esFrame.mStreamId = 224;
@@ -318,7 +318,7 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
                         ConvertToADTS((const uint8_t*) demux->pData, (size_t) demux->iSize, ADTS_Header);
                         
                         //Build a frame of data (ES)
-                        mpegts::EsFrame esFrame;
+                        //mpegts::EsFrame esFrame;
                         esFrame.mData = std::make_shared<mpegts::SimpleBuffer>();
                         //Append your ES-Data
                         

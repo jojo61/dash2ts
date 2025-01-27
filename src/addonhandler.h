@@ -38,6 +38,7 @@ struct INPUTSTREAM_IDS IDs;
 struct {
     int ID;
     int type;
+    char *codecName;
 } ID_type[INPUTSTREAM_MAX_STREAM_COUNT];
 int max_ID_type=0;
 bool running = false;
@@ -64,9 +65,11 @@ KODI_HANDLE cb_get_stream_transfer(KODI_HANDLE handle,
     std::string codecName(stream->m_codecName);
     const AVCodec* codec = nullptr;
 
+    ID_type[max_ID_type].codecName = strdup(stream->m_codecName);
     ID_type[max_ID_type].ID = streamId;
     ID_type[max_ID_type].type = stream->m_streamType;
     max_ID_type++;
+    
     
     if (!running)
         return nullptr;
@@ -99,7 +102,7 @@ KODI_HANDLE cb_get_stream_transfer(KODI_HANDLE handle,
             if (ID_type[i].type == 1) {
                 *videoid = i;
             }
-            if (ID_type[i].type == 2 && *audioid == -1) {
+            if (ID_type[i].type == 2 && *audioid == -1 && strcmp("eac3",ID_type[i].codecName)) {
                 *audioid = i;
             }
         }
@@ -259,6 +262,7 @@ std::string path;
         // Make Settings
         std::string decrypt = path+"/cdm";
         AddSettingString(NULL,"DECRYPTERPATH",decrypt.c_str());
+        AddSettingString(NULL,"NOSECUREDECODER","false");
         AddSettingString(NULL,"debug.save.license","false");   
         AddSettingString(NULL,"debug.save.manifest","false");  
 

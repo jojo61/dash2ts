@@ -192,7 +192,7 @@ DemuxPacket* AllocateDemuxPacket(int iDataSize)
 
 DemuxPacket* AllocateDemuxPacket(unsigned int iDataSize, unsigned int encryptedSubsampleCount)
 {
-    printf("Alloc Demux Packet mit encrypt Size %d\n",iDataSize);
+    //printf("Alloc Demux Packet mit encrypt Size %d\n",iDataSize);
   DemuxPacket *ret(AllocateDemuxPacket(iDataSize));
   if (ret && encryptedSubsampleCount > 0)
     ret->cryptoInfo = new DemuxCryptoInfo(encryptedSubsampleCount);
