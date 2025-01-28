@@ -203,14 +203,14 @@ void * StreamPlayer::Send_thread() {
         int packets = buf.size / 188;   // Calc TS Packets 
         for (int i=0;i<packets;i++) {
             send_packet(buf.data+i*188); // Send all TS Packets 
-            usleep(6);
+            usleep(20);
         }
         if (buf.tag) {
             //if (rbuf.size() < 50)
             //   printf("Anz PES Packets %d\n",rbuf.size());
             if (first <= 0) {  // Delay only after first Bufferfilling Packets
                 if (rbuf.size() > 800) {
-                    sleep = (int)(duration - 6 - ((GetusTicks()-lasttime) / 1000000)); // Speed up a bit we are too slow
+                    sleep = (int)(duration - 4 - ((GetusTicks()-lasttime) / 1000000)); // Speed up a bit we are too slow
                 } else {
                     sleep = (int)(duration - 1 - ((GetusTicks()-lasttime) / 1000000));
                 }   
@@ -343,7 +343,7 @@ void StreamPlayer::StreamPlay(AddonHandler *h) {
                     //Multiplex your data
                     lMuxer->encode(esFrame,0);
                 }
-
+                cb_free_demux_packet(0,demux);
                 usleep(2000);
             }
             

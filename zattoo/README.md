@@ -52,14 +52,17 @@ Run:
 	could also run zattoostream -k <path_to_kodi> -c >channels.conf 
 	Then copy the channels you want to see (or the complete channels.conf) into the
 	channels.conf from VDR.
-	Thats it.
+	
+	To get the EPG Data you can run zattoostream -k <path_to_kodi> -e
+	This will read the minimal EPG Data vor all Zattoochannels for the next 8 hours.
+	You should repeat the command every 8 Hours e.g. by a cron job. It is needed that
+	the vdr is running and svdrpsend is in the PATH.
 
 
 DRM:
 ----
-	DRM with widevine is supported. I have tested it with MTV on Zattoo Free. But it
-	seems that not all DRM Channels are working. If you find a Channel that works in Kodi,
-	but does not work with zattoo, let me know.
+	DRM with widevine is supported. I have tested it with MTV on Zattoo Free. If you 
+	find a Channel that works in Kodi, but does not work with zattoostream, let me know.
 
 
 
@@ -78,4 +81,4 @@ Install:
 
 TODO:
 ----
-	Read EPG for the Zattoo channels
+	Read Detail EPG for the Zattoo channels

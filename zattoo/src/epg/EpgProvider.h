@@ -9,14 +9,15 @@
 class EpgProvider
 {
 public:
-#if 0
-  EpgProvider(CInstancePVRClient *addon): m_addon(addon) {} 
+#if 1
+  EpgProvider(void *addon) {} 
   virtual ~EpgProvider() {};
 #endif
   virtual bool LoadEPGForChannel(ZatChannel &zatChannel, time_t iStart, time_t iEnd) = 0;
 protected:
-#if 0
+
   static std::mutex sendEpgToKodiMutex;
+#if 0
   void SendEpg(kodi::addon::PVREPGTag &tag) {
     m_addon->EpgEventStateChange(tag, EPG_EVENT_CREATED);
   }

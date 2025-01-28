@@ -11,7 +11,7 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
-//#include "epg/ZattooEpgProvider.h"
+#include "epg/ZattooEpgProvider.h"
 
 #ifdef TARGET_ANDROID
 #include "to_string.h"
@@ -483,6 +483,17 @@ ZatChannel *ZatData::FindChannel(int uniqueId)
   return nullptr;
 }
 
+
+void ZatData::GetEPGForChannelAsync(int uniqueChannelId, time_t iStart, time_t iEnd)
+{
+  if (!m_epgProvider) {
+    Log(ADDON_LOG_WARNING, "EPG Provider not ready.");
+    return;
+  }
+  ZatChannel* channel = FindChannel(uniqueChannelId);
+  m_epgProvider->LoadEPGForChannel(*channel, iStart, iEnd);
+}
+
 #if 0
 PVR_ERROR ZatData::GetEPGForChannel(int channelUid, time_t start, time_t end, kodi::addon::PVREPGTagsResultSet& results)
 {
@@ -494,15 +505,6 @@ PVR_ERROR ZatData::GetEPGForChannel(int channelUid, time_t start, time_t end, ko
   return PVR_ERROR_NO_ERROR;
 }
 
-void ZatData::GetEPGForChannelAsync(int uniqueChannelId, time_t iStart, time_t iEnd)
-{
-  if (!m_epgProvider) {
-    Log(ADDON_LOG_WARNING, "EPG Provider not ready.");
-    return;
-  }
-  ZatChannel* channel = FindChannel(uniqueChannelId);
-  m_epgProvider->LoadEPGForChannel(*channel, iStart, iEnd);
-}
 
 PVR_ERROR ZatData::SetRecordingPlayCount(const kodi::addon::PVRRecording& recording, int count)
 {
@@ -1112,17 +1114,17 @@ PVR_ERROR ZatData::IsEPGTagRecordable(const kodi::addon::PVREPGTag& tag, bool& i
   }
   return PVR_ERROR_NO_ERROR;
 }
-
-PVR_ERROR ZatData::GetEPGTagStreamProperties(const kodi::addon::PVREPGTag& tag, PVRStreamProperty& properties)
+#endif
+PVR_ERROR ZatData::GetEPGTagStreamProperties(int channelUid, time_t start, time_t end, PVRStreamProperty& properties)
 {
   std::ostringstream dataStream;
-  ZatChannel channel = m_channelsByUid[tag.GetUniqueChannelId()];
+  ZatChannel channel = m_channelsByUid[channelUid];
   
-  std::string url = GetStreamUrlForProgram(channel.cid, tag.GetUniqueBroadcastId(), properties);
+  std::string url = GetStreamUrlForProgram(channel.cid, channelUid, properties);
   
   if (url.empty()) {
-    Log(ADDON_LOG_WARNING, "Could not get url for channel %s and program %i. Try to get new EPG tag.", channel.cid.c_str(), tag.GetUniqueBroadcastId());
-    time_t referenceTime = (tag.GetStartTime() / 2) + (tag.GetEndTime() / 2);
+    Log(ADDON_LOG_INFO, "Could not get url for channel %s and program %i. Try to get new EPG tag.", channel.cid.c_str(), channelUid);
+    time_t referenceTime = (start / 2) + (end / 2);
     std::ostringstream urlStream;
     urlStream << m_session->GetProviderUrl() << "/zapi/v3/cached/" + m_session->GetPowerHash() + "/guide"
         << "?end=" << referenceTime << "&start=" << referenceTime
@@ -1197,7 +1199,7 @@ std::string ZatData::GetStreamUrlForProgram(const std::string& cid, int programI
   std::string strUrl = GetStreamUrl(doc, properties);
   return strUrl;
 }
-#endif
+
 #if 0
 PVR_ERROR ZatData::GetEPGTagEdl(const kodi::addon::PVREPGTag& tag, std::vector<kodi::addon::PVREDLEntry>& edl)
 {
@@ -1238,16 +1240,16 @@ void ZatData::UpdateConnectionState(const std::string& connectionString, PVR_CON
 
 bool ZatData::SessionInitialized()
 {
-#if 0
+
   if (m_epgProvider) {
     delete m_epgProvider;
   }
-#endif
+
   Log(ADDON_LOG_INFO, "DRM Level: %i", m_settings->DrmLevel());
   if (!LoadChannels()) {
     return false;
   }
-  //m_epgProvider = new ZattooEpgProvider(this, m_session->GetProviderUrl(), *m_epgDB, *m_httpClient, m_categories, m_visibleChannelsByCid, m_session->GetPowerHash());
+  m_epgProvider = new ZattooEpgProvider(this, m_session->GetProviderUrl(), *m_httpClient, m_visibleChannelsByCid, m_session->GetPowerHash());
   return true;
 }
 #if 0

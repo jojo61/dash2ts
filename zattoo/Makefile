@@ -25,6 +25,8 @@ OBJS := ./build/./src/zattoo.cpp.o\
 		./build/./src/sql/ParameterDB.cpp.o\
 		./build/./src/Settings.cpp.o\
 		./build/./src/ZatData.cpp.o\
+		./build/./src/epg/ZattooEpgProvider.cpp.o\
+		./build/./src/epg/EpgProvider.cpp.o
 	
 
 # String substitution (suffix version without %).

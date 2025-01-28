@@ -60,12 +60,13 @@ int main(int argc, char *argv[]) {
     
     PVRStreamProperty properties;
     bool print_channels = false;
+    bool get_epg = false;
     int uniqueID=0;
     std::string url;
     std::string license;
     
     int c;
-    while ((c = getopt (argc, argv, "u:p:k:w:h:vc")) != -1) {
+    while ((c = getopt (argc, argv, "u:p:k:w:h:vce")) != -1) {
         switch (c) {
             
             case 'p': // Portnr
@@ -88,6 +89,9 @@ int main(int argc, char *argv[]) {
                 continue;
             case 'c': // Print channellist
                 print_channels = true;
+                continue; 
+            case 'e': // Get EPG
+                get_epg = true;
                 continue; 
             case 'v': // Verbose
                 verbose = true;
@@ -119,8 +123,15 @@ int main(int argc, char *argv[]) {
     if (login) {
         zatData->LoadChannels();
         std::string channels = zatData->GetChannels();
+
         if (print_channels) {
             printf("%s",channels.c_str());
+            exit(0);
+        }
+        if (get_epg) {
+            time_t start = time(0);
+            time_t end = start + 8 * 3600;  // 4 hours
+            zatData->GetEPGForChannelAsync(0,start,end);
             exit(0);
         }
         if (verbose) printf(" Channel ID %d",uniqueID);

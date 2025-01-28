@@ -73,13 +73,16 @@ public:
   PVR_ERROR GetRecordingLastPlayedPosition(const PVRRecording& recording, int& position) override;
   PVR_ERROR IsEPGTagPlayable(const PVREPGTag& tag, bool& isPlayable) override;
   PVR_ERROR IsEPGTagRecordable(const PVREPGTag& tag, bool& isRecordable) override;
-  PVR_ERROR GetEPGTagStreamProperties(const PVREPGTag& tag, std::vector<PVRStreamProperty>& properties) override;
+  
   PVR_ERROR GetEPGTagEdl(const PVREPGTag& tag, std::vector<PVREDLEntry>& edl) override;
   PVR_ERROR GetRecordingEdl(const PVRRecording& recording, std::vector<PVREDLEntry>& edl) override;  
 
   int GetRecallSeconds(const PVREPGTag& tag);
-  void GetEPGForChannelAsync(int uniqueChannelId, time_t iStart, time_t iEnd);
 #endif
+  void GetEPGForChannelAsync(int uniqueChannelId, time_t iStart, time_t iEnd);
+
+  PVR_ERROR GetEPGTagStreamProperties(int channelUid, time_t start, time_t end, PVRStreamProperty& properties);
+  std::string GetStreamUrlForProgram(const std::string& cid, int programId, PVRStreamProperty& properties);
   bool RecordingEnabled()
   {
     return false; // m_session->IsRecordingEnabled();
@@ -101,7 +104,7 @@ private:
   RecordingsDB *m_recordingsDB;
   ParameterDB *m_parameterDB;
   HttpClient *m_httpClient;
-  //EpgProvider *m_epgProvider = nullptr;
+  EpgProvider *m_epgProvider = nullptr;
   CSettings* m_settings;
   Session *m_session;
 

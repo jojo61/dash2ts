@@ -1,8 +1,13 @@
 #include "ZattooEpgProvider.h"
 #include "rapidjson/document.h"
 //#include <kodi/AddonBase.h>
+#include "../kodi.h"
 #include "../Utils.h"
 #include <ctime>
+#include <string>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 
 using namespace rapidjson;
@@ -10,38 +15,64 @@ using namespace rapidjson;
 std::mutex ZattooEpgProvider::loadedTimeslotsMutex;
 
 ZattooEpgProvider::ZattooEpgProvider(
-    kodi::addon::CInstancePVRClient *addon,
+    void *addon,
     std::string providerUrl,
-    EpgDB &epgDB,
+    //EpgDB &epgDB,
     HttpClient &httpClient,
-    Categories &categories,
+    //Categories &categories,
     std::map<std::string, ZatChannel> &visibleChannelsByCid,
     std::string powerHash
   ):
   EpgProvider(addon),
-  m_epgDB(epgDB),
+  //m_epgDB(epgDB),
   m_httpClient(httpClient),
-  m_categories(categories),
+  //m_categories(categories),
   m_powerHash(powerHash),
   m_providerUrl(providerUrl),
   m_visibleChannelsByCid(visibleChannelsByCid)
 {
   time(&lastCleanup);
   m_detailsThreadRunning = true;
-  m_detailsThread = std::thread([&] { DetailsThread(); });
+  //m_detailsThread = std::thread([&] { DetailsThread(); });
 }
 
 ZattooEpgProvider::~ZattooEpgProvider() {
   m_detailsThreadRunning = false;
-  if (m_detailsThread.joinable())
-    m_detailsThread.join();
+  //if (m_detailsThread.joinable())
+  //  m_detailsThread.join();
 }
 
-bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notUsed, time_t iStart, time_t iEnd) {
-  CleanupAlreadyLoaded();
-  time_t tempStart = iStart - (iStart % (3600 / 2)) - 86400;
-  tempStart = SkipAlreadyLoaded(tempStart, iEnd);
-  time_t tempEnd = tempStart + 3600 * 5; //Add 5 hours
+std::string ZattooEpgProvider::svdrpsend(std::string& cmd) {
+  
+  char buffer[1000];
+    std::string result = "";
+    std::string mycmd = "svdrpsend "+cmd+"\n";
+    FILE* pipe = popen(mycmd.c_str(), "r");
+    if (!pipe) throw std::runtime_error("popen() failed!");
+    try {
+        while (fgets(buffer, sizeof (buffer), pipe) != NULL) {
+            result += buffer;
+        }
+    } catch (...) {
+        pclose(pipe);
+        throw;
+    }
+    pclose(pipe);
+    return result;
+
+}
+
+bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, time_t iEnd) {
+  char tmp[10];
+  ZatChannel channel;
+  std::string VDRid;
+  std::string uniqueID;
+  std::string epgdata;
+  std::string cmd;
+  //CleanupAlreadyLoaded();
+  //time_t tempStart = iStart - (iStart % (3600 / 2)) - 86400;
+  time_t tempStart = iStart; //SkipAlreadyLoaded(tempStart, iEnd);
+  time_t tempEnd = iEnd; //tempStart + 3600 * 5; //Add 5 hours
   while (tempStart < iEnd)
   {
     if (tempEnd > iEnd) {
@@ -62,17 +93,26 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notUsed, time_t iStart, ti
       Log(ADDON_LOG_ERROR, "Loading epg failed from %lu to %lu", iStart, iEnd);
       return false;
     }
-    RegisterAlreadyLoaded(tempStart, tempEnd);
+    //RegisterAlreadyLoaded(tempStart, tempEnd);
     const Value& channels = doc["channels"];
     
     std::lock_guard<std::mutex> lock(sendEpgToKodiMutex);
-    m_epgDB.BeginTransaction();
+    //m_epgDB.BeginTransaction();
+    int i = 0;
     for (Value::ConstMemberIterator iter = channels.MemberBegin(); iter != channels.MemberEnd(); ++iter) {
       std::string cid = iter->name.GetString();
       
-      if (m_visibleChannelsByCid.count(cid) == 0) {
+
+      channel = m_visibleChannelsByCid[cid];
+      VDRid = "I-"+std::to_string(channel.iUniqueId)+"-80-1";
+      cmd = "lstc "+VDRid;
+      std::string result = svdrpsend(cmd);
+      if (result.find("not defined") != std::string::npos) {
         continue;
       }
+      printf ("Channel %s\n",cid.c_str());
+
+      epgdata = "C "+VDRid+"\n";
 
       const Value& programs = iter->value;
       for (Value::ConstValueIterator itr1 = programs.Begin();
@@ -86,7 +126,7 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notUsed, time_t iStart, ti
         
         int programId = program["id"].GetInt();
         
-        EpgDBInfo epgDBInfo = m_epgDB.Get(programId);
+        //EpgDBInfo epgDBInfo = m_epgDB.Get(programId);
         
         const Value& genres = program["g"];
         std::string genreString;
@@ -96,7 +136,18 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notUsed, time_t iStart, ti
           genreString = (*itr2).GetString();
           break;
         }
-        
+        //printf("Genre >%s< ",genreString.c_str());
+        std::string title = Utils::JsonStringOrEmpty(program, "t"); 
+        std::string subtitle = Utils::JsonStringOrEmpty(program, "et");
+        time_t startTime = program["s"].GetInt();
+        time_t endTime = program["e"].GetInt();
+        epgdata.append("E "+ std::to_string(65000 + 1000 * i + i) + " " + std::to_string(startTime) + " " + std::to_string(endTime - startTime) + "\n");  // set Event data
+        epgdata.append("T "+ title + "\n");
+        epgdata.append("S "+ subtitle + "\n");
+        epgdata.append("e \n");
+
+        //printf("Title %s Subtitle %s from %d to %d\n",title.c_str(),subtitle.c_str(),startTime,endTime);
+#if 0        
         epgDBInfo.programId = program["id"].GetInt();
         epgDBInfo.recordUntil = Utils::JsonIntOrZero(program, "rg_u");
         epgDBInfo.replayUntil = Utils::JsonIntOrZero(program, "sr_u");
@@ -111,15 +162,26 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notUsed, time_t iStart, ti
         m_epgDB.Insert(epgDBInfo);
         
         SendEpgDBInfo(epgDBInfo);
+#endif
+        i++;
       }
-      m_epgDB.EndTransaction();
+      epgdata.append("c \n");
+      int fp = open("/tmp/epg",O_WRONLY|O_CREAT|O_TRUNC,0644);
+      ssize_t s = write(fp,epgdata.c_str(),epgdata.size());
+      if (s != epgdata.size())
+         printf("error in write\n");
+      close(fp);
+      cmd = "clre "+VDRid;
+      svdrpsend(cmd);
+      cmd = "pute /tmp/epg";
+      svdrpsend(cmd);
     }
-    tempStart = SkipAlreadyLoaded(tempEnd, iEnd);
+    tempStart = tempEnd;
     tempEnd = tempStart + 3600 * 5; //Add 5 hours
   }
   return true;
 }
-
+#if 0
 void ZattooEpgProvider::SendEpgDBInfo(EpgDBInfo &epgDBInfo) {
   
   if (m_visibleChannelsByCid.count(epgDBInfo.cid) == 0) {
@@ -286,4 +348,4 @@ void ZattooEpgProvider::DetailsThread()
   }
   Log(ADDON_LOG_DEBUG, "Details thread stopped");
 }
-
+#endif

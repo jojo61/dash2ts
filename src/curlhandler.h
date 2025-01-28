@@ -25,6 +25,7 @@ std::string m_postdata;
 int post;
 int fp;
 char *useragent;
+char *url;
 };
 
 struct ch curlhandler[10];
@@ -208,6 +209,7 @@ void * curl_create(void * base, const char *url) {
         c->readptr = 0;
         c->writeptr = 0;
         c->fp = -1;
+        c->url = strdup(url);
     }
     return c;
 

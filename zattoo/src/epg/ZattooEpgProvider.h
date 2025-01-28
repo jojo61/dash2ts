@@ -21,27 +21,28 @@ class ZattooEpgProvider: public EpgProvider
 {
 public:
   ZattooEpgProvider(
-      kodi::addon::CInstancePVRClient *addon,
+      void *addon,
       std::string providerUrl, 
-      EpgDB &epgDB, 
+      //EpgDB &epgDB, 
       HttpClient &httpClient, 
-      Categories &categories,
+      //Categories &categories,
       std::map<std::string, ZatChannel> &visibleChannelsByCid, 
       std::string powerHash
   );
   virtual ~ZattooEpgProvider();
   virtual bool LoadEPGForChannel(ZatChannel &zatChannel, time_t iStart, time_t iEnd);
+  std::string svdrpsend(std::string& );
 private:
   static std::mutex loadedTimeslotsMutex;
-  time_t SkipAlreadyLoaded(time_t startTime, time_t endTime);
-  void RegisterAlreadyLoaded(time_t startTime, time_t endTime);
-  void CleanupAlreadyLoaded();
-  void DetailsThread();
-  void SendEpgDBInfo(EpgDBInfo &epgDBInfo);
+  //time_t SkipAlreadyLoaded(time_t startTime, time_t endTime);
+  //void RegisterAlreadyLoaded(time_t startTime, time_t endTime);
+  //void CleanupAlreadyLoaded();
+  //void DetailsThread();
+  //void SendEpgDBInfo(EpgDBInfo &epgDBInfo);
   time_t lastCleanup;
-  EpgDB &m_epgDB;
+  //EpgDB &m_epgDB;
   HttpClient &m_httpClient;
-  Categories &m_categories;
+  //Categories &m_categories;
   std::string m_powerHash;
   std::string m_providerUrl;
   std::list<LoadedTimeslots> m_loadedTimeslots;

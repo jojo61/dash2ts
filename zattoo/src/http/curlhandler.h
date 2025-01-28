@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#define BUFFERMAX 2000000
+#define BUFFERMAX 4000000
 #define MAX_INSTANCE 10
 
 
