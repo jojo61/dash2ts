@@ -130,10 +130,11 @@ int main(int argc, char *argv[]) {
         }
         if (get_epg) {
             time_t start = time(0);
-            time_t end = start + 8 * 3600;  // 4 hours
+            time_t end = start + 8 * 3600;  // 8 hours
             zatData->GetEPGForChannelAsync(0,start,end);
             exit(0);
         }
+
         if (verbose) printf(" Channel ID %d",uniqueID);
         zatData->GetChannelStreamProperties(uniqueID,properties);
         std::vector<StreamParamValue>::iterator it;
