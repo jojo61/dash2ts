@@ -43,6 +43,7 @@ In der Test directory you will find a sample channels.config with the online ORF
 You need to copy the dashstream.sh file to the iptv plugin directory. Also you have
 to edit the path to dash2ts and the path to Kodi in the file.
 
+
 Run:
 ----
 	If you want to test dash2ts directly, you can start it with:
@@ -52,6 +53,12 @@ Run:
 	  path_to_kodi is the path to the addon directory of Kodi default is /storage/.kodi
 	  drm_token is the user_token for widevine to get the decoding Keys
 
+	Some words to the <path_to_kodi>. I expect the following files under this path:
+	<path_to_kodi>/addons/inputstream.adaptive/inputstream.adaptive.so.xx.yy.zz 
+	<path_to_kodi>/addons/inputstream.adaptive/libssd_wv.so
+	<path_to_kodi>/cdm/libwidevinecdm.so
+
+
 DRM:
 ----
 	DRM with widevine is not straightforward. The programm can decode the stream with
@@ -59,7 +66,7 @@ DRM:
 	with DRM encoded streams has his own method to get the Token. So you need to implement 
 	your own way to get the token and provide it to the programm. See the example for ORF 
 	in dashstreams.sh in the Test directory.
-
+	There is also a Programm for Zattoo in the zattoo directory.
 
 
 Install:
@@ -72,8 +79,4 @@ Install:
 	cp build/dash2ts /usr/local/bin
 
 
-
-
-Known Bugs:
------------
-	DRM Streams are working but very slow 
+	

@@ -41,7 +41,7 @@ The Tool is named zattoostream.
 
 In der Test directory you will find a sample script for IPTV..
 You need to copy the zattoostream.sh file to the iptv plugin directory. Also you have
-to edit the path to dash2ts and the path to Kodi in the file.
+to edit the path to zattoostream and the path to Kodi in the file.
 
 Run:
 ----
@@ -55,15 +55,20 @@ Run:
 	
 	To get the EPG Data you can run zattoostream -k <path_to_kodi> -e
 	This will read the minimal EPG Data vor all Zattoochannels for the next 8 hours.
-	You should repeat the command every 8 Hours e.g. by a cron job. It is needed that
-	the vdr is running and svdrpsend is in the PATH.
+	You should repeat the command every 8 Hours e.g. by a cron job. 
+	
+	It is needed that the vdr is running and svdrpsend and dash2ts is in the linux PATH.
+
+	Some words to the <path_to_kodi>. I expect the following files under this path:
+	<path_to_kodi>/userdata/addon_data/pvr.zattoo/parameter.sqlite
+	<path_to_kodi>/userdata/addon_data/pvr.zattoo/settings.xml
+	See also Readme for dash2ts for additional files.
 
 
 DRM:
 ----
 	DRM with widevine is supported. I have tested it with MTV on Zattoo Free. If you 
 	find a Channel that works in Kodi, but does not work with zattoostream, let me know.
-
 
 
 Install:
