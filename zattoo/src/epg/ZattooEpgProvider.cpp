@@ -62,13 +62,48 @@ std::string ZattooEpgProvider::svdrpsend(std::string& cmd) {
 
 }
 
+std::string ZattooEpgProvider::GetDetails(int ProgrammId) {
+    std::ostringstream urlStream;
+    std::string description = "";
+
+    urlStream << m_providerUrl << "/zapi/v2/cached/program/power_details/"
+        << m_powerHash << "?complete=True&program_ids=" << std::to_string(ProgrammId);
+    
+    int statusCode;
+    std::string jsonString = m_httpClient.HttpGet(urlStream.str(), statusCode);
+
+    Document detailDoc;
+    detailDoc.Parse(jsonString.c_str());
+    if (detailDoc.GetParseError() || !detailDoc["success"].GetBool())
+    {
+      return description;
+    }
+    else
+    {
+      const Value& programs = detailDoc["programs"];
+      for (Value::ConstValueIterator progItr = programs.Begin();
+          progItr != programs.End(); ++progItr)
+      {
+        const Value &program = *progItr;
+        description.append(Utils::JsonStringOrEmpty(program, "d"));
+
+        //epgDBInfo->season = program.HasMember("s_no") && !program["s_no"].IsNull() ? program["s_no"].GetInt() : -1;
+        //epgDBInfo->episode = program.HasMember("e_no") && !program["e_no"].IsNull() ? program["e_no"].GetInt() : -1;
+
+        
+      }
+    }
+    return description;
+}
+
 bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, time_t iEnd) {
   char tmp[10];
   ZatChannel channel;
   std::string VDRid;
   std::string uniqueID;
   std::string epgdata;
-  std::string cmd;
+  std::string cmd,details;
+  bool more_details = true;
   //CleanupAlreadyLoaded();
   //time_t tempStart = iStart - (iStart % (3600 / 2)) - 86400;
   time_t tempStart = iStart; //SkipAlreadyLoaded(tempStart, iEnd);
@@ -98,7 +133,7 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, ti
     
     std::lock_guard<std::mutex> lock(sendEpgToKodiMutex);
     //m_epgDB.BeginTransaction();
-    int i = 0;
+    
     for (Value::ConstMemberIterator iter = channels.MemberBegin(); iter != channels.MemberEnd(); ++iter) {
       std::string cid = iter->name.GetString();
       
@@ -113,7 +148,7 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, ti
       printf ("Channel %s\n",cid.c_str());
 
       epgdata = "C "+VDRid+"\n";
-
+      more_details = true;
       const Value& programs = iter->value;
       for (Value::ConstValueIterator itr1 = programs.Begin();
           itr1 != programs.End(); ++itr1)
@@ -125,9 +160,12 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, ti
           continue;
         
         int programId = program["id"].GetInt();
-        
-        //EpgDBInfo epgDBInfo = m_epgDB.Get(programId);
-        
+        if (more_details)
+          details = GetDetails(programId);
+        if (details.size() == 0) {
+           more_details = false;
+        }
+ 
         const Value& genres = program["g"];
         std::string genreString;
         for (Value::ConstValueIterator itr2 = genres.Begin();
@@ -141,9 +179,10 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, ti
         std::string subtitle = Utils::JsonStringOrEmpty(program, "et");
         time_t startTime = program["s"].GetInt();
         time_t endTime = program["e"].GetInt();
-        epgdata.append("E "+ std::to_string(65000 + 1000 * i + i) + " " + std::to_string(startTime) + " " + std::to_string(endTime - startTime) + "\n");  // set Event data
+        epgdata.append("E "+ std::to_string(programId) + " " + std::to_string(startTime) + " " + std::to_string(endTime - startTime) + "\n");  // set Event data
         epgdata.append("T "+ title + "\n");
         epgdata.append("S "+ subtitle + "\n");
+        epgdata.append("D "+ details + "\n");
         epgdata.append("e \n");
 
         //printf("Title %s Subtitle %s from %d to %d\n",title.c_str(),subtitle.c_str(),startTime,endTime);
@@ -163,7 +202,6 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, ti
         
         SendEpgDBInfo(epgDBInfo);
 #endif
-        i++;
       }
       epgdata.append("c \n");
       int fp = open("/tmp/epg",O_WRONLY|O_CREAT|O_TRUNC,0644);
@@ -171,8 +209,8 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, ti
       if (s != epgdata.size())
          printf("error in write\n");
       close(fp);
-      cmd = "clre "+VDRid;
-      svdrpsend(cmd);
+      //cmd = "clre "+VDRid;
+      //svdrpsend(cmd);
       cmd = "pute /tmp/epg";
       svdrpsend(cmd);
     }
