@@ -39,9 +39,11 @@ Quickstart:
 Download the Git Repository. Then run make. This will create a build directory.
 The converter is named dash2ts. 
 
-In der Test directory you will find a sample channels.config with the online ORF Streams.
+In the Test directory you will find a sample channels.config for the online ORF Streams.
 You need to copy the dashstream.sh file to the iptv plugin directory. Also you have
 to edit the path to dash2ts and the path to Kodi in the file.
+You will need the IPTV plugin from Zabrimus in order to use dash2ts.
+https://github.com/Zabrimus/vdr-plugin-iptv
 
 
 Run:
@@ -52,6 +54,7 @@ Run:
 	  portnr is the UDP Port where the TS Data will be send
 	  path_to_kodi is the path to the addon directory of Kodi default is /storage/.kodi
 	  drm_token is the user_token for widevine to get the decoding Keys
+	  -v Enables Debug 
 
 	Some words to the <path_to_kodi>. I expect the following files under this path:
 	<path_to_kodi>/addons/inputstream.adaptive/inputstream.adaptive.so.xx.yy.zz 

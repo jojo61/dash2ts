@@ -81,7 +81,7 @@ public:
     StreamPlayer(int );
     ~StreamPlayer();
     
-    void send_packet(uint8_t *);
+    void send_packet(uint8_t *,int);
     void *Send_thread();
     void StreamPlay(AddonHandler *);
 };

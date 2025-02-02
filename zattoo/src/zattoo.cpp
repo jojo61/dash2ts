@@ -49,8 +49,11 @@ std::string path = "/home/jojo/.kodi";
         return (stat (name.c_str(), &buffer) == 0); 
     }
 
-
-
+void usage() {
+    printf("Use: zattoostream -k <path_to_kodi> [-p <port> -u <uniqueID>] [-c] [-e] [-v]\n");
+    printf("                  -e Read EPG (needs running VDR)\n");
+    printf("                  -c Print Channel List\n");
+}
 
 std::string portno;
 std::string widevine_url,headers;
@@ -97,11 +100,17 @@ int main(int argc, char *argv[]) {
                 verbose = true;
                 continue;             
             default:
-                //usage();
+                usage();
                 exit(0);
         }
         break;
     }
+
+    if (argc < 2) {
+        usage();
+        exit(0);
+    }
+
     if (verbose) printf("-------Start---------\n");
     //auto curl = new Curl();
     std::string pathdb = path + "/userdata/addon_data/pvr.zattoo/";

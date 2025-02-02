@@ -28,6 +28,8 @@ char *useragent;
 char *url;
 };
 
+std::mutex curlMutex;
+
 struct ch curlhandler[10];
 
 int get_curl_instance() {
@@ -197,13 +199,14 @@ const char * GetValue(const char *name,struct ch *c) {
 
 void * curl_create(void * base, const char *url) {
 
-    
+    std::lock_guard<std::mutex> lock(curlMutex);
     int i = get_curl_instance();
-    if (i == -1)
+    if (i == -1) {  
         return nullptr;
-    if (verbose) printf("Open Handle %d URL %s\n",i,url);
+    }
     struct ch *c = &curlhandler[i];    
     c->curl = curl_easy_init();
+    if (verbose) printf("Open Handle %d URL %s\n",i,url);
     if (c->curl) {
         curl_easy_setopt(c->curl, CURLOPT_URL, url);
         c->readptr = 0;

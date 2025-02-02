@@ -43,7 +43,21 @@ bool verbose = false;
 #include "streamplayer.h"
 #include "addonhandler.h"
 
+static inline uint64_t GetMsTicks(void) {
+#ifdef CLOCK_MONOTONIC
+    struct timespec tspec;
 
+    clock_gettime(CLOCK_MONOTONIC, &tspec);
+    return (uint64_t)(tspec.tv_sec * 1000) + (tspec.tv_nsec / (1000 * 1000));
+#else
+    struct timeval tval;
+
+    if (gettimeofday(&tval, NULL) < 0) {
+        return 0;
+    }
+    return (tval.tv_sec * 1000) + (tval.tv_usec / 1000);
+#endif
+}
 static inline uint64_t GetusTicks(void) {
 
 #ifdef CLOCK_MONOTONIC
@@ -85,7 +99,7 @@ typedef struct {
 
 
 // create Ringbuffer for output thread
-circular_buffer<cbuf, 2000> rbuf;
+circular_buffer<cbuf, 1000> rbuf;
 
 //A callback where all the TS-packets are sent from the multiplexer
 void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
@@ -123,7 +137,8 @@ StreamPlayer::StreamPlayer(int portnr) {
     NALUHeader.length[0] = 0x10;
     
         // Open output Socket
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        
     if (sockfd < 0) {
         printf("ERROR opening socket\n");
         exit(0);
@@ -170,10 +185,11 @@ StreamPlayer::~StreamPlayer() {
     close(sockfd);
 };
 
-void StreamPlayer::send_packet(uint8_t *p) {
+void StreamPlayer::send_packet(uint8_t *p,int size) {
     int n = 0;
     do {
-        ssize_t r = write(sockfd,p,188);
+        ssize_t r = write(sockfd,p,size);
+        if (r != size) printf("sendpacket only %d\n",r);
         if (r < 0) {
             usleep(10);
             //printf("failure write %d\n",r);
@@ -182,16 +198,16 @@ void StreamPlayer::send_packet(uint8_t *p) {
             n += r;
         }
         
-    } while (n < 188);
+    } while (n < size);
 }
 
 void * StreamPlayer::Send_thread() {
     uint64_t lasttime;
     cbuf buf;
     int sleep;
-    int first=100; // send first 100 Video PES Packets without delay to stuff buffers
+    int first=80; // send first 100 Video PES Packets without delay to stuff buffers
 
-    while (rbuf.size() < 200) // wait for at least 200 PES Packets
+    while (rbuf.size() < 100) // wait for at least 100 PES Packets
         usleep(10);
     
     for (;;) {
@@ -199,27 +215,19 @@ void * StreamPlayer::Send_thread() {
             usleep(10);  // wait 10 ms
         }
         auto value = rbuf.get();
-        buf = value.value();            // Get PES Packet
+        buf = value.value();            // Get PES Packet     
+#if 0
         int packets = buf.size / 188;   // Calc TS Packets 
         for (int i=0;i<packets;i++) {
-            send_packet(buf.data+i*188); // Send all TS Packets 
+            send_packet(buf.data+i*188,188); // Send all TS Packets 
             usleep(20);
         }
+#else
+        send_packet(buf.data,buf.size);
+#endif
         if (buf.tag) {
-            //if (rbuf.size() < 50)
-            //   printf("Anz PES Packets %d\n",rbuf.size());
             if (first <= 0) {  // Delay only after first Bufferfilling Packets
-                if (rbuf.size() > 800) {
-                    sleep = (int)(duration - 4 - ((GetusTicks()-lasttime) / 1000000)); // Speed up a bit we are too slow
-                } else {
-                    sleep = (int)(duration - 1 - ((GetusTicks()-lasttime) / 1000000));
-                }   
-                //printf("sleep %d\n",sleep);
-                if (sleep > 0 && sleep <= 40)
-                    usleep(sleep*1000);
-                else
-                    usleep((duration - 4)*1000);
-                lasttime = GetusTicks();
+                usleep(2000);  // Sleep 2 ms
             }
             else {
                 first--;
@@ -238,12 +246,12 @@ void StreamPlayer::StreamPlay(AddonHandler *h) {
     
     if (h->GetStreamIDs()) {
         BitstreamConverterInit();
-        
+        if (verbose) printf("Streamcount %d\n",IDs.m_streamCount);
         for (int i=0;i<IDs.m_streamCount;i++) {
             if (verbose) printf("No. ID%d %d\n",i,IDs.m_streamIds[i]);
             h->GetStream(IDs.m_streamIds[i]);   // Build ID Table:
         }
-
+        if (verbose) printf("\n\n");
         h->SelectStreams(&VideoID,&AudioID);
         
         h->EnableStream(IDs.m_streamIds[VideoID],true);  // Enable Video Stream

@@ -308,7 +308,7 @@ std::string path;
     int AddonHandler::GetCapabilities() {
         struct INPUTSTREAM_CAPABILITIES caps;
         kodi.inputstream->toAddon->get_capabilities(kodi.inputstream,&caps);
-        printf("Capabilities %04x\n",caps.m_mask);
+        //printf("Capabilities %04x\n",caps.m_mask);
         return caps.m_mask;
     }
 

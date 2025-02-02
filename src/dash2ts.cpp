@@ -9,12 +9,13 @@ extern bool verbose;
 std::string& Trim(std::string &, const char* const );
 
 void usage() {
-    printf("Usage: dash2ts -f url_to_manifest.mpd\n");
+    printf("Usage: dash2ts -u url_to_manifest.mpd\n");
     printf("               -p portnr\n");
     printf("              [-k path_to_kodi]\n");
     printf("              [-h http_headers]\n");
     printf("              [-d drm_token] or [-w widevine_url]\n");
     printf("              [-v] \n");
+    printf("       -v Enable Debug Verbose\n");
     printf("       path_to_kodi default is /storage/.kodi\n");
     printf("       http_headers default is %s\n",headers.c_str());
     printf("       only -d or -w is allowed. Not both\n");

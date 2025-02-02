@@ -109,7 +109,7 @@ std::string Curl::Request(const std::string& action, const std::string& url, con
     statusCode = -2;
     return "";
   }
-  int num;
+  
   std::string proto = GetPropertyValues(file,ADDON_FILE_PROPERTY_RESPONSE_PROTOCOL, "");
   std::string::size_type posResponseCode = proto.find(' ');
   if (posResponseCode != std::string::npos)

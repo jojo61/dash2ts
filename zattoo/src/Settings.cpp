@@ -19,7 +19,6 @@ using namespace tinyxml2;
 bool CSettings::Load()
 {
   XMLDocument doc;
-  int j=0;
 
   std::string xmlfile = UserPath() + "settings.xml";
 

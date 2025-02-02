@@ -97,7 +97,7 @@ std::string ZattooEpgProvider::GetDetails(int ProgrammId) {
 }
 
 bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, time_t iEnd) {
-  char tmp[10];
+  
   ZatChannel channel;
   std::string VDRid;
   std::string uniqueID;

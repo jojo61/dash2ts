@@ -386,7 +386,7 @@ std::string  ZatData::GetChannels()
         std::string uniqueID(id);
         std::string aktnr(nr);
         myTrim(channel.name,filter);
-        onechannel = channel.name + ";IPTV:"+aktnr+":S=1|P=1|F=EXT|U=zattoostream.sh|A="+uniqueID+":I:0:265=27:257=@4:0:0:1:"+uniqueID+":80:0\n";
+        onechannel = channel.name + ";IPTV:"+aktnr+":S=1|P=1|F=EXTT|U=zattoostream.sh|A="+uniqueID+":I:0:265=27:257=@4:0:0:1:"+uniqueID+":80:0\n";
         allchannels.append(onechannel);
       }
 
