@@ -9,11 +9,11 @@
 class EpgProvider
 {
 public:
-#if 1
+
   EpgProvider(void *addon) {} 
   virtual ~EpgProvider() {};
-#endif
-  virtual bool LoadEPGForChannel(ZatChannel &zatChannel, time_t iStart, time_t iEnd) = 0;
+
+  virtual bool LoadEPGForChannel( time_t iStart, time_t iEnd) = 0;
 protected:
 
   static std::mutex sendEpgToKodiMutex;

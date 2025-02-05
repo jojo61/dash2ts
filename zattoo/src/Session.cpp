@@ -32,32 +32,48 @@ bool Session::Start()
   }
 #endif  
   m_running = true;
-  //m_thread = std::thread([&] { LoginThread(); });
-  return LoginThread();
+  m_thread = std::thread([&] { LoginThread(); });
+  return true;
 }
 
-bool Session::LoginThread() {
- 
+void Session::LoginThread() {
+  while (m_running) {  
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    if (!m_running) {
+      return;
+    }
+    
+    if (m_isConnected) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+      continue;
+    }
+    
+    if (m_nextLoginAttempt > std::time(0)) {
+      continue;
+    }
+
     std::string username = m_settings->GetZatUsername();
     std::string password = m_settings->GetZatPassword();
     
     Log(ADDON_LOG_DEBUG, "Login Zattoo");
     if (Login(username, password))
     {
-      if (m_zatData->SessionInitialized()) {
-        m_isConnected = true;
-        Log(ADDON_LOG_DEBUG, "Login done");
-      return true;
+      if (!m_zatData->SessionInitialized()) {
+         m_nextLoginAttempt = std::time(0) + 60;
+        continue;
       }
-      
+      m_isConnected = true;
+      Log(ADDON_LOG_DEBUG, "Login done");
+      m_zatData->UpdateConnectionState("Zattoo connection established", PVR_CONNECTION_STATE_CONNECTED, "");
     }
     else
     {
       Log(ADDON_LOG_ERROR, "Login failed");
-      return false;
-      
+      m_nextLoginAttempt = std::time(0) + 3600;
     }
-  return false;
+  }
 }
 
 bool Session::Login(std::string u, std::string p)
@@ -66,7 +82,7 @@ bool Session::Login(std::string u, std::string p)
   if (!LoadAppId())
   {
     Reset();
-    //m_zatData->UpdateConnectionState("Failed to get appId", PVR_CONNECTION_STATE_SERVER_UNREACHABLE, kodi::addon::GetLocalizedString(30203));
+    m_zatData->UpdateConnectionState("Failed to get appId", PVR_CONNECTION_STATE_SERVER_UNREACHABLE, "");
     m_nextLoginAttempt = std::time(0) + 60;
     return false;
   }
@@ -78,8 +94,8 @@ bool Session::Login(std::string u, std::string p)
   
   if (statusCode != 200)
   {
-    //Reset();
-    //m_zatData->UpdateConnectionState("Not reachable", PVR_CONNECTION_STATE_SERVER_UNREACHABLE, kodi::addon::GetLocalizedString(30203));
+    Reset();
+    m_zatData->UpdateConnectionState("Not reachable", PVR_CONNECTION_STATE_SERVER_UNREACHABLE, "");
     m_nextLoginAttempt = std::time(0) + 60;
     return false;
   }
@@ -135,7 +151,6 @@ bool Session::Login(std::string u, std::string p)
   Log(ADDON_LOG_INFO, "Recordings are %s",
       m_recordingEnabled ? "enabled" : "disabled");
   m_powerHash = Utils::JsonStringOrEmpty(doc, "power_guide_hash");
-  
   
   return true;
 }
@@ -242,20 +257,19 @@ bool Session::SendHello()
 
 void Session::Reset()
 {
-  return;
   SetProviderUrl();
   m_isConnected = false;
   m_httpClient->ClearSession();
   m_appToken = "";
   m_parameterDB->Set("appToken", m_appToken);
-  //m_zatData->UpdateConnectionState("Zattoo session expired", PVR_CONNECTION_STATE_CONNECTING, "");
+  m_zatData->UpdateConnectionState("Zattoo session expired", PVR_CONNECTION_STATE_CONNECTING, "");
 }
 
 void Session::ErrorStatusCode (int statusCode) {
   if (statusCode == 403)
   {
     Log(ADDON_LOG_ERROR, "Got 403. Try to re-init session.");
-    //Reset();
+    Reset();
   }
 }
 

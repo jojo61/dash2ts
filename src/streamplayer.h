@@ -59,6 +59,7 @@ private:
     struct sockaddr_in serv_addr;
     struct hostent *server;
     bool audioseen = false;
+    bool videoseen = false;
     bool firstvideo = true;
     int ID = 0;
     struct DEMUX_PACKET* demux;
@@ -66,7 +67,7 @@ private:
     bool makepmt = true;
     mpegts::MpegTsMuxer *lMuxer;
 
-    int sockfd;
+    
     int duration;  // Duration of one Frame in ms
 
     struct {

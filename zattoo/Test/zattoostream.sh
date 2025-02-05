@@ -15,7 +15,6 @@ PORT=${2}
 #echo $PARAMETER
 #echo $PORT
 
-KPATH="/storage/.kodi"
-PATH=$PATH":/usr/local/bin"
+PATH=$PATH":/usr/local/bin" # need path to dash2ts
 
-/usr/local/bin/zattoostream  -p ${PORT} -k ${KPATH} -u $PARAMETER 
+exec /usr/local/bin/zattoostream  -p ${PORT} -u $PARAMETER 

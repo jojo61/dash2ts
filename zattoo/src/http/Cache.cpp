@@ -8,7 +8,7 @@
 
 using namespace rapidjson;
 
-constexpr char CACHE_DIR[] = "special://profile/addon_data/pvr.zattoo/cache/";
+constexpr char CACHE_DIR[] = "/userdata/addon_data/pvr.zattoo/cache/";
 
 time_t Cache::m_lastCleanup = 0;
 

@@ -88,7 +88,7 @@ public:
     return false; // m_session->IsRecordingEnabled();
   }
   void UpdateConnectionState(const std::string& connectionString, PVR_CONNECTION_STATE newState, const std::string& message);
-  
+  PVR_CONNECTION_STATE GetState() {return ConnectionState;}
   //ADDON_STATUS SetSetting(const std::string& settingName,
   //                        const CSettingValue& settingValue) override;
 
@@ -108,6 +108,7 @@ private:
   CSettings* m_settings;
   Session *m_session;
 
+  PVR_CONNECTION_STATE ConnectionState;
   bool ReadDataJson();
   rapidjson::Document Login();
   bool InitSession(bool isReinit);

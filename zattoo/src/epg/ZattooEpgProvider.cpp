@@ -8,6 +8,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
 
 
 using namespace rapidjson;
@@ -33,31 +36,68 @@ ZattooEpgProvider::ZattooEpgProvider(
 {
   time(&lastCleanup);
   m_detailsThreadRunning = true;
-  //m_detailsThread = std::thread([&] { DetailsThread(); });
+  m_detailsThread = std::thread([&] { DetailsThread(); });
 }
 
 ZattooEpgProvider::~ZattooEpgProvider() {
   m_detailsThreadRunning = false;
-  //if (m_detailsThread.joinable())
-  //  m_detailsThread.join();
+  if (m_detailsThread.joinable())
+    m_detailsThread.join();
 }
 
-std::string ZattooEpgProvider::svdrpsend(std::string& cmd) {
-  
-  char buffer[1000];
+std::string ZattooEpgProvider::svdrpsend(std::string& cmd, std::string& data) {
+
+    // Open output Socket
+    char buffer[1000];
     std::string result = "";
-    std::string mycmd = "svdrpsend "+cmd+"\n";
-    FILE* pipe = popen(mycmd.c_str(), "r");
-    if (!pipe) throw std::runtime_error("popen() failed!");
-    try {
-        while (fgets(buffer, sizeof (buffer), pipe) != NULL) {
-            result += buffer;
-        }
-    } catch (...) {
-        pclose(pipe);
-        throw;
+    std::string mycmd;
+    if (data.size())
+      mycmd = cmd+"\n";
+    else
+      mycmd = cmd+"\nquit\n";
+    struct sockaddr_in serv_addr;
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    
+    if (sockfd < 0) {
+        printf("ERROR opening socket\n");
+        return result;
     }
-    pclose(pipe);
+
+    struct hostent *server = gethostbyname("127.0.0.1");
+    if (server == NULL) {
+        printf("ERROR, no such host\n");
+        return result;
+    }
+    
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, 
+        (char *)&serv_addr.sin_addr.s_addr,
+        server->h_length);
+    serv_addr.sin_port = htons(6419);
+
+    int flags = fcntl(sockfd, F_GETFL);
+    fcntl(sockfd, F_SETFL, flags&~SOCK_NONBLOCK);
+
+    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
+        //printf("ERROR connecting\n");
+        return result;
+    }
+    ssize_t r = write(sockfd,mycmd.c_str(),mycmd.size());
+    if (data.size()) {
+       r = write(sockfd,data.c_str(),data.size());
+       mycmd = "quit\n";
+       r = write(sockfd,mycmd.c_str(),mycmd.size());
+    }
+    
+    ssize_t i;
+    do {
+      i = read(sockfd,buffer,sizeof(buffer));      
+      if (i > 0)
+        result.append(buffer,i);
+    } while (i > 0);
+    //printf(" Result %s\n",result.c_str());
+    close (sockfd);
     return result;
 
 }
@@ -96,13 +136,27 @@ std::string ZattooEpgProvider::GetDetails(int ProgrammId) {
     return description;
 }
 
-bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, time_t iEnd) {
+void ZattooEpgProvider::DetailsThread()
+{
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+  Log(ADDON_LOG_DEBUG, "EPG thread started");
+  while (m_detailsThreadRunning)
+  {
+    time_t start = time(0);
+    time_t end = start + 8 * 3600;  // 8 hours
+    ZattooEpgProvider::LoadEPGForChannel(start,end);
+    std::this_thread::sleep_for(std::chrono::seconds(3600));
+  }
+}
+
+bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd) {
   
   ZatChannel channel;
   std::string VDRid;
   std::string uniqueID;
   std::string epgdata;
-  std::string cmd,details;
+  std::string cmd,details,data;
+  std::string result;
   bool more_details = true;
   //CleanupAlreadyLoaded();
   //time_t tempStart = iStart - (iStart % (3600 / 2)) - 86400;
@@ -131,7 +185,7 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, ti
     //RegisterAlreadyLoaded(tempStart, tempEnd);
     const Value& channels = doc["channels"];
     
-    std::lock_guard<std::mutex> lock(sendEpgToKodiMutex);
+    //std::lock_guard<std::mutex> lock(sendEpgToKodiMutex);
     //m_epgDB.BeginTransaction();
     
     for (Value::ConstMemberIterator iter = channels.MemberBegin(); iter != channels.MemberEnd(); ++iter) {
@@ -141,12 +195,20 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, ti
       channel = m_visibleChannelsByCid[cid];
       VDRid = "I-"+std::to_string(channel.iUniqueId)+"-80-1";
       cmd = "lstc "+VDRid;
-      std::string result = svdrpsend(cmd);
+      result.clear();
+      while (!result.size()) {
+        result = svdrpsend(cmd,data);
+        if (!result.size()) {
+          std::this_thread::sleep_for(std::chrono::seconds(4));
+        }
+      }
+
       if (result.find("not defined") != std::string::npos) {
         continue;
       }
-      printf ("Channel %s\n",cid.c_str());
-
+      
+      Log(ADDON_LOG_DEBUG,"Channel %s\n",cid.c_str());
+      std::this_thread::sleep_for(std::chrono::seconds(4));
       epgdata = "C "+VDRid+"\n";
       more_details = true;
       const Value& programs = iter->value;
@@ -203,16 +265,9 @@ bool ZattooEpgProvider::LoadEPGForChannel(ZatChannel &notused, time_t iStart, ti
         SendEpgDBInfo(epgDBInfo);
 #endif
       }
-      epgdata.append("c \n");
-      int fp = open("/tmp/epg",O_WRONLY|O_CREAT|O_TRUNC,0644);
-      ssize_t s = write(fp,epgdata.c_str(),epgdata.size());
-      if (s != epgdata.size())
-         printf("error in write\n");
-      close(fp);
-      //cmd = "clre "+VDRid;
-      //svdrpsend(cmd);
-      cmd = "pute /tmp/epg";
-      svdrpsend(cmd);
+      epgdata.append("c \n.\n");
+      cmd = "pute";
+      svdrpsend(cmd,epgdata);
     }
     tempStart = tempEnd;
     tempEnd = tempStart + 3600 * 5; //Add 5 hours

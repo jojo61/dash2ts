@@ -59,6 +59,7 @@ Run:
 	Some words to the <path_to_kodi>. I expect the following files under this path:
 	<path_to_kodi>/addons/inputstream.adaptive/inputstream.adaptive.so.xx.yy.zz 
 	<path_to_kodi>/addons/inputstream.adaptive/libssd_wv.so
+	<path_to_kodi>/addons/inputstream.adaptive/resources/settings.xml
 	<path_to_kodi>/cdm/libwidevinecdm.so
 
 

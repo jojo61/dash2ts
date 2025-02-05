@@ -89,40 +89,58 @@ static inline uint64_t GetusTicks(void) {
 
 
 std::string headers = "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML. like Gecko) Chrome/116.0.0.0&Content-Type=application/octet-stream";
-
+int sockfd;
 typedef struct {
         uint8_t *data;
         int size;
         int tag;
 } cbuf;
 
+void sendpacket(uint8_t *p,int size) {
+    int n = 0;
+    do {
+        ssize_t r = write(sockfd,p,size);
+        //if (r != size) printf("sendpacket only %d\n",r);
+        if (r < 0) {
+            usleep(10);
+            //printf("failure write %d\n",r);
+        }
+        else {
+            n += r;
+        }
+        
+    } while (n < size);
+}
 
-
-// create Ringbuffer for output thread
-circular_buffer<cbuf, 1000> rbuf;
+// create Ringbuffer for output buffer
+circular_buffer<cbuf, 100> rbuf;
 
 //A callback where all the TS-packets are sent from the multiplexer
 void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
-    
+    static int startbuffer = 20;    
+    cbuf buf;
     if (rTsOutBuffer.size() % 188) {
         printf("packetsize wrong\n");
         return;
     }
-        
-    cbuf buf;
-    buf.data = (uint8_t*)malloc(rTsOutBuffer.size());
-    buf.size = rTsOutBuffer.size();
-    buf.tag = tag;
-    memcpy(buf.data,rTsOutBuffer.data(),rTsOutBuffer.size());
-    while (rbuf.full()) {
-        //printf("rbuf is full\n");
-        usleep(20000);
+    if (startbuffer > 0) {                  // Buffer first 20 packets
+        cbuf buf;
+        buf.data = (uint8_t*)malloc(rTsOutBuffer.size());
+        buf.size = rTsOutBuffer.size();
+        buf.tag = tag;
+        memcpy(buf.data,rTsOutBuffer.data(),rTsOutBuffer.size());
+        rbuf.put(buf);
+        startbuffer--;
+    } else {
+        while (rbuf.size()) {               // empty buffer queue
+            auto value = rbuf.get();
+            buf = value.value();            // Get PES Packet  from Queue
+            sendpacket(buf.data,buf.size);
+            free(buf.data); 
+        }
+        sendpacket(rTsOutBuffer.data(),rTsOutBuffer.size());  // Now send the latest packet
     }
-    rbuf.put(buf);
-    usleep(10);
-
-    rTsOutBuffer.clear();
-    
+    rTsOutBuffer.clear();  
 }
 
 
@@ -184,12 +202,12 @@ StreamPlayer::~StreamPlayer() {
         m_thread.join();  
     close(sockfd);
 };
-
+#if 0
 void StreamPlayer::send_packet(uint8_t *p,int size) {
     int n = 0;
     do {
         ssize_t r = write(sockfd,p,size);
-        if (r != size) printf("sendpacket only %d\n",r);
+        //if (r != size) printf("sendpacket only %d\n",r);
         if (r < 0) {
             usleep(10);
             //printf("failure write %d\n",r);
@@ -201,11 +219,13 @@ void StreamPlayer::send_packet(uint8_t *p,int size) {
     } while (n < size);
 }
 
+
+
 void * StreamPlayer::Send_thread() {
     uint64_t lasttime;
     cbuf buf;
     int sleep;
-    int first=80; // send first 100 Video PES Packets without delay to stuff buffers
+    int first=80; // send first 80 Video PES Packets without delay to stuff buffers
 
     while (rbuf.size() < 100) // wait for at least 100 PES Packets
         usleep(10);
@@ -215,11 +235,11 @@ void * StreamPlayer::Send_thread() {
             usleep(10);  // wait 10 ms
         }
         auto value = rbuf.get();
-        buf = value.value();            // Get PES Packet     
+        buf = value.value();            // Get PES Packet  
 #if 0
         int packets = buf.size / 188;   // Calc TS Packets 
         for (int i=0;i<packets;i++) {
-            send_packet(buf.data+i*188,188); // Send all TS Packets 
+            send_packet(buf.data+i*188,188); // Send all TS Packets
             usleep(20);
         }
 #else
@@ -236,10 +256,12 @@ void * StreamPlayer::Send_thread() {
         free(buf.data); 
     }
 }
+#endif
 
 void StreamPlayer::StreamPlay(AddonHandler *h) {
     int VideoID=-1,AudioID=-1;
-    m_thread = std::thread (&StreamPlayer::Send_thread,this);
+    
+    //m_thread = std::thread (&StreamPlayer::Send_thread,this);
 
     if (verbose) printf("Sucessfull opened Addon\n");
     h->GetCapabilities();
@@ -279,77 +301,75 @@ void StreamPlayer::StreamPlay(AddonHandler *h) {
                     CBitstreamConverterClose();
                     h->OpenStream(IDs.m_streamIds[ID]);
                     h->GetStream(IDs.m_streamIds[ID]);
-                    continue;
+                   
                 }
-
-                if (h->GetType(demux->iStreamId) == INPUTSTREAM_TYPE_VIDEO) {
-                    if (!audioseen )
-                        continue;
-                    
-                    //mpegts::EsFrame esFrame;
-
-                    CBitstreamConverter(demux->pData,demux->iSize);
+                else if (h->GetType(demux->iStreamId) == INPUTSTREAM_TYPE_VIDEO) {
+                    videoseen = true;
+                    if (audioseen) {
+                        //mpegts::EsFrame esFrame;
+                        CBitstreamConverter(demux->pData,demux->iSize);
+                            
+                        //Build a frame of data (ES)
+                        esFrame.mData = std::make_shared<mpegts::SimpleBuffer>();
                         
-                    //Build a frame of data (ES)
-                    esFrame.mData = std::make_shared<mpegts::SimpleBuffer>();
-                    
-                    //Append your ES-Data
-                    esFrame.mData->append((const uint8_t *) &NALUHeader, 6);
-                    if (firstvideo) {  // resend PPS and SPS
-                        esFrame.mData->append((const uint8_t *)m_sps_pps_context.sps_pps_data,m_sps_pps_context.size);
-                        firstvideo = false;
+                        //Append your ES-Data
+                        esFrame.mData->append((const uint8_t *) &NALUHeader, 6);
+                        if (firstvideo) {  // resend PPS and SPS
+                            esFrame.mData->append((const uint8_t *)m_sps_pps_context.sps_pps_data,m_sps_pps_context.size);
+                            firstvideo = false;
+                        }
+                        esFrame.mData->append((const uint8_t *) m_convertBuffer,m_convertSize);
+                        
+                        duration = demux->duration / 1000;
+                        esFrame.mPts = demux->pts/demux->duration;
+                        esFrame.mDts = demux->dts/demux->duration;
+                        esFrame.mPts *= 90*(demux->duration/1000);
+                        esFrame.mDts *= 90*(demux->duration/1000);
+                        
+                        esFrame.mPcr = 0;
+                        esFrame.mStreamType = TYPE_VIDEO;
+                        esFrame.mStreamId = 224;
+                        esFrame.mPid = VIDEO_PID;
+                        esFrame.mExpectedPesPacketLength = 0;
+                        esFrame.mCompleted = true;
+    #if 0                      
+                        time_t now;
+                        now = time(0);
+                        if ((now % 10) == 0)
+                            makepmt = true;  // send PMT every 10 sek
+    #endif
+                        //Multiplex your data
+                        lMuxer->encode(esFrame,1,makepmt);
+                        makepmt = false;
                     }
-                    esFrame.mData->append((const uint8_t *) m_convertBuffer,m_convertSize);
-                    
-                    duration = demux->duration / 1000;
-                    esFrame.mPts = demux->pts/demux->duration;
-                    esFrame.mDts = demux->dts/demux->duration;
-                    esFrame.mPts *= 90*(demux->duration/1000);
-                    esFrame.mDts *= 90*(demux->duration/1000);
-
-                    esFrame.mPcr = 0;
-                    esFrame.mStreamType = TYPE_VIDEO;
-                    esFrame.mStreamId = 224;
-                    esFrame.mPid = VIDEO_PID;
-                    esFrame.mExpectedPesPacketLength = 0;
-                    esFrame.mCompleted = true;
-#if 0                      
-                    time_t now;
-                    now = time(0);
-                    if ((now % 10) == 0)
-                        makepmt = true;  // send PMT every 10 sek
-#endif
-                    //Multiplex your data
-                    lMuxer->encode(esFrame,1,makepmt);
-                    makepmt = false;
                 }
-
-                if (h->GetType(demux->iStreamId) == INPUTSTREAM_TYPE_AUDIO) {
+                else if (h->GetType(demux->iStreamId) == INPUTSTREAM_TYPE_AUDIO) {
                     audioseen = true;
-                    
-                    ConvertToADTS((const uint8_t*) demux->pData, (size_t) demux->iSize, ADTS_Header);
-                    
-                    //Build a frame of data (ES)
-                    //mpegts::EsFrame esFrame;
-                    esFrame.mData = std::make_shared<mpegts::SimpleBuffer>();
-                    //Append your ES-Data
-                    
-                    esFrame.mData->append((const uint8_t *) ADTS_Header,7);
-                    esFrame.mData->append((const uint8_t *) demux->pData, demux->iSize);
-                    esFrame.mPts = demux->pts/demux->duration;
-                    esFrame.mDts = demux->dts/demux->duration;
-                    esFrame.mPts *= 90*(demux->duration/1000);
-                    esFrame.mDts *= 90*(demux->duration/1000);
-                    //printf("apts %f %f Duration %f\n",demux->pts,demux->dts,demux->duration);
-                    esFrame.mPcr = 0;
-                    esFrame.mStreamType = TYPE_AUDIO;
-                    esFrame.mStreamId = 192;
-                    esFrame.mPid = AUDIO_PID;
-                    esFrame.mExpectedPesPacketLength = 0;
-                    esFrame.mCompleted = true;
+                    //if (videoseen) {
+                        ConvertToADTS((const uint8_t*) demux->pData, (size_t) demux->iSize, ADTS_Header);
+                        
+                        //Build a frame of data (ES)
+                        //mpegts::EsFrame esFrame;
+                        esFrame.mData = std::make_shared<mpegts::SimpleBuffer>();
+                        //Append your ES-Data
+                        
+                        esFrame.mData->append((const uint8_t *) ADTS_Header,7);
+                        esFrame.mData->append((const uint8_t *) demux->pData, demux->iSize);
+                        esFrame.mPts = demux->pts/demux->duration;
+                        esFrame.mDts = demux->dts/demux->duration;
+                        esFrame.mPts *= 90*(demux->duration/1000);
+                        esFrame.mDts *= 90*(demux->duration/1000);
+                        //printf("apts %f %f Duration %f\n",demux->pts,demux->dts,demux->duration);
+                        esFrame.mPcr = 0;
+                        esFrame.mStreamType = TYPE_AUDIO;
+                        esFrame.mStreamId = 192;
+                        esFrame.mPid = AUDIO_PID;
+                        esFrame.mExpectedPesPacketLength = 0;
+                        esFrame.mCompleted = true;
 
-                    //Multiplex your data
-                    lMuxer->encode(esFrame,0);
+                        //Multiplex your data
+                        lMuxer->encode(esFrame,0);
+                    //}
                 }
                 cb_free_demux_packet(0,demux);
                 usleep(2000);

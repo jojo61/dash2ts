@@ -148,8 +148,6 @@ std::string HttpClient::HttpRequest(const std::string& action, const std::string
 
   if (statusCode >= 400 || statusCode < 200) {
     Log(ADDON_LOG_ERROR, "Open URL failed with %i.", statusCode);
-    std::string st = "mesg Kanal derzeit nicht verfügbar Error:"+ std::to_string(statusCode);
-    svdrpsend(st);
     if (m_statusCodeHandler != nullptr) {
       m_statusCodeHandler->ErrorStatusCode(statusCode);
     }

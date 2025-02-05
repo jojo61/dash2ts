@@ -22,7 +22,7 @@ using namespace rapidjson;
 constexpr char app_token_file[] = "special://temp/zattoo_app_token";
 const char data_file[] = "special://profile/addon_data/pvr.zattoo/data.json";
 
-#if 1
+
 void ZatData::SetStreamProperties(
     PVRStreamProperty& properties,
     const std::string& url)
@@ -33,7 +33,7 @@ void ZatData::SetStreamProperties(
   properties.emplace_back("mimetype", "application/xml+dash");
   properties.emplace_back("inputstream.adaptive.manifest_update_parameter", "full");
 }
-#endif
+
 
 bool ZatData::ReadDataJson()
 {
@@ -206,7 +206,7 @@ ZatData::ZatData() :
   m_session = new Session(m_httpClient, this, m_settings, m_parameterDB);
   m_httpClient->SetStatusCodeHandler(m_session);
   
-  //UpdateConnectionState("Initializing", PVR_CONNECTION_STATE_CONNECTING, "");
+  UpdateConnectionState("Initializing", PVR_CONNECTION_STATE_CONNECTING, "");
   
   ReadDataJson();
   
@@ -426,6 +426,8 @@ PVR_ERROR ZatData::GetChannelStreamProperties(const int uniqueID,
   PVR_ERROR ret = PVR_ERROR_FAILED;
 
   ZatChannel* ownChannel = FindChannel(uniqueID);
+  if (!ownChannel)
+    return ret;
   Log(ADDON_LOG_DEBUG, "Get live url for channel %s", ownChannel->cid.c_str());
   
   bool forceWithoutDrm = GetDrmLevel() <= 0;
@@ -491,7 +493,7 @@ void ZatData::GetEPGForChannelAsync(int uniqueChannelId, time_t iStart, time_t i
     return;
   }
   ZatChannel* channel = FindChannel(uniqueChannelId);
-  m_epgProvider->LoadEPGForChannel(*channel, iStart, iEnd);
+  m_epgProvider->LoadEPGForChannel( iStart, iEnd);
 }
 
 #if 0
@@ -1232,11 +1234,13 @@ PVR_ERROR ZatData::GetRecordingEdl(const kodi::addon::PVRRecording& recording, s
   }
   return PVR_ERROR_NO_ERROR;
 }
-
-void ZatData::UpdateConnectionState(const std::string& connectionString, PVR_CONNECTION_STATE newState, const std::string& message) {
-  kodi::addon::CInstancePVRClient::ConnectionStateChange(connectionString, newState, message);
-}
 #endif
+void ZatData::UpdateConnectionState(const std::string& connectionString, PVR_CONNECTION_STATE newState, const std::string& message) {
+  ConnectionState = newState;
+  Log(ADDON_LOG_INFO,"Connection State: %s",connectionString.c_str());
+  printf("Connection State %s\n",connectionString.c_str());
+}
+
 
 bool ZatData::SessionInitialized()
 {

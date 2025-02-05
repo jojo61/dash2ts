@@ -20,7 +20,7 @@ public:
   ~Session();
   bool Start();
   void Stop();
-  bool LoginThread();
+  void LoginThread();
   void Reset();
   void ErrorStatusCode (int statusCode);
   bool IsConnected() {

@@ -1,0 +1,17 @@
+[Unit]
+Description=Zattoo Daemon
+Requires=network-online.target graphical.target
+After=network-online.target graphical.target
+
+[Service]
+ExecStart=/usr/local/bin/zattood -k /storage/.kodi
+Restart=always
+RestartSec=2
+StartLimitInterval=0
+TimeoutStartSec=30
+TimeoutStopSec=30
+LimitNOFILE=16384
+
+[Install]
+WantedBy=vdropt.target
+
