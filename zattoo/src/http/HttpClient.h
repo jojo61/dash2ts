@@ -10,8 +10,7 @@ class HttpClient
 public:
   HttpClient(ParameterDB *parameterDB);
   ~HttpClient();
-  std::string svdrpsend(std::string& cmd);
-  std::string HttpGetCached(const std::string& url, time_t cacheDuration, int &statusCode);
+  std::string HttpGetCached(const std::string& url, time_t cacheDuration, int &statusCode, bool store );
   std::string HttpGet(const std::string& url, int &statusCode);
   std::string HttpDelete(const std::string& url, int &statusCode);
   std::string HttpPost(const std::string& url, const std::string& postData, int &statusCode);

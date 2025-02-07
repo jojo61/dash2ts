@@ -286,7 +286,7 @@ void StreamPlayer::StreamPlay(AddonHandler *h) {
         h->GetStream(IDs.m_streamIds[AudioID]);
 
         mpegts::EsFrame esFrame;
-
+        
         do {
             
             // Read Stream Packet
@@ -305,20 +305,25 @@ void StreamPlayer::StreamPlay(AddonHandler *h) {
                 }
                 else if (h->GetType(demux->iStreamId) == INPUTSTREAM_TYPE_VIDEO) {
                     videoseen = true;
-                    if (audioseen) {
+                    if (audioseen || m_to_annexb == false) {
                         //mpegts::EsFrame esFrame;
-                        CBitstreamConverter(demux->pData,demux->iSize);
-                            
+                        if (m_to_annexb) {
+                            CBitstreamConverter(demux->pData,demux->iSize);
+                        }
                         //Build a frame of data (ES)
                         esFrame.mData = std::make_shared<mpegts::SimpleBuffer>();
                         
                         //Append your ES-Data
                         esFrame.mData->append((const uint8_t *) &NALUHeader, 6);
-                        if (firstvideo) {  // resend PPS and SPS
+                        if (firstvideo && m_to_annexb) {  // resend PPS and SPS
                             esFrame.mData->append((const uint8_t *)m_sps_pps_context.sps_pps_data,m_sps_pps_context.size);
                             firstvideo = false;
                         }
-                        esFrame.mData->append((const uint8_t *) m_convertBuffer,m_convertSize);
+                        if (m_to_annexb) {
+                            esFrame.mData->append((const uint8_t *) m_convertBuffer,m_convertSize);
+                        } else {
+                            esFrame.mData->append((const uint8_t *) demux->pData,demux->iSize);
+                        }
                         
                         duration = demux->duration / 1000;
                         esFrame.mPts = demux->pts/demux->duration;
@@ -332,12 +337,12 @@ void StreamPlayer::StreamPlay(AddonHandler *h) {
                         esFrame.mPid = VIDEO_PID;
                         esFrame.mExpectedPesPacketLength = 0;
                         esFrame.mCompleted = true;
-    #if 0                      
+#if 0                      
                         time_t now;
                         now = time(0);
                         if ((now % 10) == 0)
                             makepmt = true;  // send PMT every 10 sek
-    #endif
+#endif
                         //Multiplex your data
                         lMuxer->encode(esFrame,1,makepmt);
                         makepmt = false;

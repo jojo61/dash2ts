@@ -7,12 +7,13 @@
 #include "StringUtils.h"
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <mutex>
 
 #define BUFFERMAX 4000000
 #define MAX_INSTANCE 10
 
 
-extern int verbose;
+extern bool verbose;
 
 typedef std::pair<std::string, std::string> HeaderParamValue;
 typedef std::vector<HeaderParamValue> HeaderParams;
@@ -35,6 +36,8 @@ int post;
 int fp;
 char *useragent;
 };
+
+std::mutex curlMutex;
 
 struct ch curlhandler[10];
 
@@ -205,11 +208,11 @@ const char * GetValue(const char *name,struct ch *c) {
 
 void * curl_create(void * base, const char *url) {
 
-    
+    std::lock_guard<std::mutex> lock(curlMutex);
     int i = get_curl_instance();
     if (i == -1)
         return nullptr;
-    if (verbose) printf("Open Handle %d URL %s\n",i,url);
+    if (verbose) printf("Open %d Handle %d URL %s\n",verbose, i,url);
     struct ch *c = &curlhandler[i];    
     c->curl = curl_easy_init();
     if (c->curl) {
@@ -223,7 +226,6 @@ void * curl_create(void * base, const char *url) {
 }
 
 bool curl_open(void *base, void *curl, unsigned int flags) {
-
 
     //printf("curl open\n");
     struct ch *c = (struct ch *)curl;
@@ -356,6 +358,7 @@ bool curl_add_option(void* kodiBase, void* curl, int type, const char* name, std
 }
 
 void * open_file_for_write(void* kodi, const char *filename, bool overwrite) {
+    std::lock_guard<std::mutex> lock(curlMutex);
     int i = get_curl_instance();
     if (i == -1)
         return nullptr;

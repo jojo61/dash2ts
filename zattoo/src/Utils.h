@@ -24,4 +24,9 @@ public:
   static int JsonIntOrZero(const rapidjson::Value& jsonValue, const char* fieldName);
   static bool JsonBoolOrFalse(const rapidjson::Value& jsonValue, const char* fieldName);
   static bool RunsOnLinux();
+  static bool FileExists(const std::string& path, bool cache);
+  static bool DirectoryExists(const std::string& name);
+  static bool CreateDirectory(const std::string& name);
+  static bool GetDirectory(std::string& path, std::vector<std::string> *items);
+  static bool DeleteFile(std::string& path);
 };

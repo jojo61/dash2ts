@@ -14,7 +14,7 @@ using namespace tinyxml2;
     int n_settings;
 
     int ReadXML(const char * xmlfile) {
-
+#if 0
         XMLDocument doc;
         int j=0;
 
@@ -48,9 +48,42 @@ using namespace tinyxml2;
                 text = p_setting->Attribute("id");
                 settings[++j].id = strdup(text);
             }
+            printf("XML ID >%s< Value >%s<\n",settings[j-1].id,settings[j-1].deflt);
             n_settings = j+1;
         }
         
+        
+#else
+    int j = 0;
+    settings[j].id      = strdup("adaptivestream.res.max");
+    settings[j++].deflt = strdup("auto");
+    settings[j].id      = strdup("adaptivestream.type");
+    settings[j++].deflt = strdup("default");
+    settings[j].id      = strdup("adaptivestream.res.secure.max");
+    settings[j++].deflt = strdup("auto");
+    settings[j].id      = strdup("adaptivestream.bandwidth.init.auto");
+    settings[j++].deflt = strdup("true"); 
+    settings[j].id      = strdup("adaptivestream.bandwidth.init");
+    settings[j++].deflt = strdup("4000");  
+    settings[j].id      = strdup("adaptivestream.bandwidth.min");
+    settings[j++].deflt = strdup("0");
+    settings[j].id      = strdup("adaptivestream.bandwidth.max");
+    settings[j++].deflt = strdup("1000000");
+    settings[j].id      = strdup("adaptivestream.streamselection.mode");
+    settings[j++].deflt = strdup("manual-v");
+    settings[j].id      = strdup("adaptivestream.test.mode");
+    settings[j++].deflt = strdup("switch-segments");
+    settings[j].id      = strdup("MEDIATYPE");
+    settings[j++].deflt = strdup("0");
+    settings[j].id      = strdup("MAXBUFFERDURATION");
+    settings[j++].deflt = strdup("120");
+    settings[j].id      = strdup("ASSUREDBUFFERDURATION");
+    settings[j++].deflt = strdup("60");
+    settings[j].id      = strdup("HDCPOVERRIDE");
+    settings[j++].deflt = strdup("false");
+    n_settings = j;
+#endif
+
         return EXIT_SUCCESS;
     }
 

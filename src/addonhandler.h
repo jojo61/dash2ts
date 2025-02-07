@@ -258,6 +258,7 @@ std::string path;
         LoadXML(xmlfile);
         AddProp("inputstream.adaptive.stream_selection_type","adaptive");
         AddProp("inputstream.adaptive.manifest_type","mpd");
+        //AddProp("inputstream.adaptive.license_flags","force_secure_decoder");
         
         // Make Settings
         std::string decrypt = path+"/cdm";

@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <filesystem>
 //#include <kodi/Filesystem.h>
 //#include <kodi/General.h>
 
@@ -83,6 +84,31 @@ std::vector<std::string> Utils::SplitString(const std::string &str,
   }
 
   return tokens;
+}
+
+bool Utils::DirectoryExists(const std::string& name) {
+  return std::filesystem::exists(name);
+}
+
+bool Utils::CreateDirectory(const std::string& name) {
+  return std::filesystem::create_directory(name);
+}
+
+bool Utils::FileExists (const std::string& name, bool cache) {
+  struct stat buffer;   
+  return (stat (name.c_str(), &buffer) == 0); 
+}
+
+bool Utils::GetDirectory(std::string& path, std::vector<std::string> *items) {
+  
+    for (const auto & entry : std::filesystem::directory_iterator(path)) {
+        items->push_back(entry.path());
+    }
+    return true;
+}
+
+bool Utils::DeleteFile(std::string& path) {
+    return std::filesystem::remove(path);
 }
 
 std::string Utils::ReadFile(const std::string& path)

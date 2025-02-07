@@ -342,6 +342,7 @@ bool curl_add_option(void* kodiBase, void* curl, int type, const char* name, con
 }
 
 void * open_file_for_write(void* kodi, const char *filename, bool overwrite) {
+    std::lock_guard<std::mutex> lock(curlMutex);
     int i = get_curl_instance();
     if (i == -1)
         return nullptr;

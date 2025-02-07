@@ -13,7 +13,7 @@ public:
   EpgProvider(void *addon) {} 
   virtual ~EpgProvider() {};
 
-  virtual bool LoadEPGForChannel( time_t iStart, time_t iEnd) = 0;
+  //virtual bool LoadEPGForChannel( time_t iStart, time_t iEnd) = 0;
 protected:
 
   static std::mutex sendEpgToKodiMutex;

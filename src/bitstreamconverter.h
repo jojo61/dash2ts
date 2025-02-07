@@ -456,6 +456,7 @@ void BitstreamAllocAndCopy7(uint8_t** poutbuf,
     (*poutbuf + offset + sps_pps_size)[2] = 1;
   }
 }
+
 bool BitstreamConvertInitAVC(void *in_extradata, int in_extrasize)
 {
   // based on h264_mp4toannexb_bsf.c (ffmpeg)
@@ -995,8 +996,14 @@ bool BitstreamConverterOpen(enum AVCodecID codec, uint8_t *in_extradata, int in_
               BitstreamConvertInitAVC(m_extraData, in_extrasize);
           return true;
         }
-        else
-          printf( "CBitstreamConverter::Open Invalid avcC\n");
+        else if ( (in_extradata[0] == 0 && in_extradata[1] == 0 && in_extradata[2] == 0 && in_extradata[3] == 1) ||
+                  (in_extradata[0] == 0 && in_extradata[1] == 0 && in_extradata[2] == 1) )
+          {
+            printf( "CBitstreamConverter::Open AnnexB Version\n");
+            m_to_annexb = false;
+            return true;
+          }
+          printf( "CBitstreamConverter::Open Invalid avcC Version %02x\n",in_extradata[0]);
       }
 #if 0
       else

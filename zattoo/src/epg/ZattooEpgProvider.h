@@ -30,9 +30,9 @@ public:
       std::string powerHash
   );
   virtual ~ZattooEpgProvider();
-  virtual bool LoadEPGForChannel(time_t iStart, time_t iEnd);
+  bool LoadEPGForChannel(time_t iStart, time_t iEnd, bool details);
   std::string svdrpsend(std::string& , std::string&);
-  std::string GetDetails(int ProgrammId);
+  std::string GetDetails(int ProgrammId, time_t validUntil);
 private:
   static std::mutex loadedTimeslotsMutex;
   //time_t SkipAlreadyLoaded(time_t startTime, time_t endTime);

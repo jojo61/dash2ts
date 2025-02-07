@@ -58,40 +58,17 @@ std::string HttpClient::GenerateUUID()
     return tmp_s;
 }
 
-std::string HttpClient::svdrpsend(std::string& cmd) {
-  
-  char buffer[1000];
-    std::string result = "";
-    std::string mycmd = "svdrpsend "+cmd+"\n";
-    FILE* pipe = popen(mycmd.c_str(), "r");
-    if (!pipe) throw std::runtime_error("popen() failed!");
-    try {
-        while (fgets(buffer, sizeof (buffer), pipe) != NULL) {
-            result += buffer;
-        }
-    } catch (...) {
-        pclose(pipe);
-        throw;
-    }
-    pclose(pipe);
-    return result;
-
-}
-
-std::string HttpClient::HttpGetCached(const std::string& url, time_t cacheDuration, int &statusCode)
+std::string HttpClient::HttpGetCached(const std::string& url, time_t cacheDuration, int &statusCode, bool store)
 {
 
   std::string content;
-    
-  content = HttpGet(url, statusCode);
-  return content;
-#if 0
+
   std::string cacheKey = md5(url);
   statusCode = 200;
   if (!Cache::Read(cacheKey, content))
   {
     content = HttpGet(url, statusCode);
-    if (!content.empty())
+    if (!content.empty() && store)
     {
       time_t validUntil;
       time(&validUntil);
@@ -100,7 +77,7 @@ std::string HttpClient::HttpGetCached(const std::string& url, time_t cacheDurati
     }
   }
   return content;
-#endif
+
 }
 
 std::string HttpClient::HttpGet(const std::string& url, int &statusCode)

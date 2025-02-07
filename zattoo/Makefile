@@ -28,7 +28,9 @@ OBJS := ./build/./src/zattood.cpp.o\
 		./build/./src/Settings.cpp.o\
 		./build/./src/ZatData.cpp.o\
 		./build/./src/epg/ZattooEpgProvider.cpp.o\
-		./build/./src/epg/EpgProvider.cpp.o
+		./build/./src/epg/EpgProvider.cpp.o\
+		./build/./src/http/Cache.cpp.o\
+		./build/./src/md5.cpp.o
 
 HANDLER := ./build/./src/zattoostream.cpp.o
 

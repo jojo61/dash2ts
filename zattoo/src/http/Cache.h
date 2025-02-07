@@ -13,4 +13,5 @@ public:
 private:
   static bool IsStillValid(const rapidjson::Value& cache);
   static time_t m_lastCleanup;
+  void *file;
 };

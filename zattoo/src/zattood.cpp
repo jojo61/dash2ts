@@ -11,8 +11,10 @@
 #define DAEMON
 
 bool verbose=false;
+bool enable_cache = false;
 std::string path;
 std::string myfifo = "/tmp/zattoofifo";
+std::string CACHE_DIR = "/userdata/addon_data/pvr.zattoo/cache/";
 
    // template<typename... Args>
     void Log(int level,const char *format, ...)
@@ -85,7 +87,7 @@ int main(int argc, char *argv[]) {
     path = home + "/.kodi";
 
     int c;
-    while ((c = getopt (argc, argv, "u:k:w:h:vc")) != -1) {
+    while ((c = getopt (argc, argv, "u:k:w:h:C:vc")) != -1) {
         switch (c) {
             
             case 'k': // got new Path to Kodi
@@ -102,6 +104,12 @@ int main(int argc, char *argv[]) {
             case 'h': // Set new Headers
                 headers.clear();
                 headers.append(optarg);
+                continue;
+            case 'C': // Set cache directory
+                CACHE_DIR.clear();
+                CACHE_DIR.append(optarg);
+                CACHE_DIR.append("/zattoocache/");
+                enable_cache = true;
                 continue;
             case 'c': // Print channellist
                 print_channels = true;
@@ -163,7 +171,7 @@ int main(int argc, char *argv[]) {
                 if (!strcmp(it->first.c_str(),"inputstream.adaptive.license_key")) {
                     license = it->second;
                 }
-                if (verbose) printf(">%s< >%s<",it->first.c_str(),it->second.c_str());
+                printf(">%s< >%s<\n",it->first.c_str(),it->second.c_str());
                 
             }
 

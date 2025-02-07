@@ -124,9 +124,8 @@ bool ZatData::LoadChannels()
     channel.iUniqueId = Utils::GetChannelId(cid.c_str());
     channel.cid = cid;
     channel.iChannelNumber = ++channelNumber;
-    channel.recordingEnabled =
-        channelItem.HasMember("recording") ?
-            channelItem["recording"].GetBool() : false;
+    channel.recordingEnabled = channelItem.HasMember("recording") ? channelItem["recording"].GetBool() : false;
+    channel.inVDR = 0;
     
     const Value& qualities = channelItem["qualities"];
     for (Value::ConstValueIterator itr2 = qualities.Begin();
@@ -485,7 +484,7 @@ ZatChannel *ZatData::FindChannel(int uniqueId)
   return nullptr;
 }
 
-
+#if 0
 void ZatData::GetEPGForChannelAsync(int uniqueChannelId, time_t iStart, time_t iEnd)
 {
   if (!m_epgProvider) {
@@ -496,7 +495,7 @@ void ZatData::GetEPGForChannelAsync(int uniqueChannelId, time_t iStart, time_t i
   m_epgProvider->LoadEPGForChannel( iStart, iEnd);
 }
 
-#if 0
+
 PVR_ERROR ZatData::GetEPGForChannel(int channelUid, time_t start, time_t end, kodi::addon::PVREPGTagsResultSet& results)
 {
   // Aligning the start- and end times improves caching

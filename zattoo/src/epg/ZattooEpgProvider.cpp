@@ -11,7 +11,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h> 
+#include "../http/Cache.h"
+#include "../md5.h"
 
+extern bool enable_cache;
 
 using namespace rapidjson;
 
@@ -66,6 +69,7 @@ std::string ZattooEpgProvider::svdrpsend(std::string& cmd, std::string& data) {
     struct hostent *server = gethostbyname("127.0.0.1");
     if (server == NULL) {
         printf("ERROR, no such host\n");
+        close(sockfd);
         return result;
     }
     
@@ -81,6 +85,7 @@ std::string ZattooEpgProvider::svdrpsend(std::string& cmd, std::string& data) {
 
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
         //printf("ERROR connecting\n");
+        close(sockfd);
         return result;
     }
     ssize_t r = write(sockfd,mycmd.c_str(),mycmd.size());
@@ -102,7 +107,7 @@ std::string ZattooEpgProvider::svdrpsend(std::string& cmd, std::string& data) {
 
 }
 
-std::string ZattooEpgProvider::GetDetails(int ProgrammId) {
+std::string ZattooEpgProvider::GetDetails(int ProgrammId, time_t validUntil) {
     std::ostringstream urlStream;
     std::string description = "";
 
@@ -110,7 +115,7 @@ std::string ZattooEpgProvider::GetDetails(int ProgrammId) {
         << m_powerHash << "?complete=True&program_ids=" << std::to_string(ProgrammId);
     
     int statusCode;
-    std::string jsonString = m_httpClient.HttpGet(urlStream.str(), statusCode);
+    std::string jsonString = m_httpClient.HttpGetCached(urlStream.str(), 86400, statusCode, false);
 
     Document detailDoc;
     detailDoc.Parse(jsonString.c_str());
@@ -126,11 +131,17 @@ std::string ZattooEpgProvider::GetDetails(int ProgrammId) {
       {
         const Value &program = *progItr;
         description.append(Utils::JsonStringOrEmpty(program, "d"));
-
+        
         //epgDBInfo->season = program.HasMember("s_no") && !program["s_no"].IsNull() ? program["s_no"].GetInt() : -1;
         //epgDBInfo->episode = program.HasMember("e_no") && !program["e_no"].IsNull() ? program["e_no"].GetInt() : -1;
 
-        
+      }
+      if (description.size() && enable_cache) {  // Cache only if description is avail.
+          std::string cacheKey = md5(urlStream.str());
+          //time_t validUntil;
+          //time(&validUntil);
+          //validUntil += 86400;
+          Cache::Write(cacheKey, jsonString, validUntil);
       }
     }
     return description;
@@ -140,16 +151,23 @@ void ZattooEpgProvider::DetailsThread()
 {
   std::this_thread::sleep_for(std::chrono::seconds(10));
   Log(ADDON_LOG_DEBUG, "EPG thread started");
+  Cache::Cleanup();   // Cleanup old cache files on start
   while (m_detailsThreadRunning)
   {
     time_t start = time(0);
     time_t end = start + 8 * 3600;  // 8 hours
-    ZattooEpgProvider::LoadEPGForChannel(start,end);
-    std::this_thread::sleep_for(std::chrono::seconds(3600));
+    ZattooEpgProvider::LoadEPGForChannel(start,end, true);  // Read 8h epg with Details
+    for (int i = 0;i< 3;i++) {                              // Read additional 24h EPG without Details (is anyway not available)
+      start = end;
+      end = end + 8 * 3600;
+      ZattooEpgProvider::LoadEPGForChannel(start,end, false);
+    }
+    std::this_thread::sleep_for(std::chrono::hours(2));  // Sleep 2h
+    Cache::Cleanup();
   }
 }
 
-bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd) {
+bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd, bool readdetails) {
   
   ZatChannel channel;
   std::string VDRid;
@@ -173,7 +191,7 @@ bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd) {
         << "&format=json";
 
     int statusCode;
-    std::string jsonString = m_httpClient.HttpGetCached(urlStream.str(), 86400, statusCode);
+    std::string jsonString = m_httpClient.HttpGet(urlStream.str(),statusCode);
 
     Document doc;
     doc.Parse(jsonString.c_str());
@@ -194,21 +212,33 @@ bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd) {
 
       channel = m_visibleChannelsByCid[cid];
       VDRid = "I-"+std::to_string(channel.iUniqueId)+"-80-1";
-      cmd = "lstc "+VDRid;
-      result.clear();
-      while (!result.size()) {
-        result = svdrpsend(cmd,data);
-        if (!result.size()) {
-          std::this_thread::sleep_for(std::chrono::seconds(4));
-        }
-      }
 
-      if (result.find("not defined") != std::string::npos) {
+      if (channel.inVDR == 2) {
         continue;
       }
+
+      if (channel.inVDR == 0) {  // not yet testet
+        cmd = "lstc "+VDRid;
+        result.clear();
+        while (!result.size()) {
+          result = svdrpsend(cmd,data);
+          if (!result.size()) {
+            std::this_thread::sleep_for(std::chrono::seconds(4));
+          }
+        }
+        if (result.find("not defined") != std::string::npos) {
+          channel.inVDR = 2;    // not in channels.conf
+          m_visibleChannelsByCid[cid] = channel;   // store back
+          continue;
+        }
+        else {
+          channel.inVDR = 1;    // aktiv VDR channel
+          m_visibleChannelsByCid[cid] = channel;  // store back
+        }
+      }
       
-      Log(ADDON_LOG_DEBUG,"Channel %s\n",cid.c_str());
-      std::this_thread::sleep_for(std::chrono::seconds(4));
+      Log(ADDON_LOG_DEBUG,"Channel %s",cid.c_str());
+      std::this_thread::sleep_for(std::chrono::seconds(1));
       epgdata = "C "+VDRid+"\n";
       more_details = true;
       const Value& programs = iter->value;
@@ -220,12 +250,15 @@ bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd) {
         const Type& checkType = program["t"].GetType();
         if (checkType != kStringType)
           continue;
+
+        time_t endTime = program["e"].GetInt();
         
         int programId = program["id"].GetInt();
-        if (more_details)
-          details = GetDetails(programId);
-        if (details.size() == 0) {
-           more_details = false;
+        if (more_details && readdetails) {
+          details = GetDetails(programId,endTime);
+          if (details.size() == 0) {
+            more_details = false;
+          }
         }
  
         const Value& genres = program["g"];
@@ -240,7 +273,7 @@ bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd) {
         std::string title = Utils::JsonStringOrEmpty(program, "t"); 
         std::string subtitle = Utils::JsonStringOrEmpty(program, "et");
         time_t startTime = program["s"].GetInt();
-        time_t endTime = program["e"].GetInt();
+       
         epgdata.append("E "+ std::to_string(programId) + " " + std::to_string(startTime) + " " + std::to_string(endTime - startTime) + "\n");  // set Event data
         epgdata.append("T "+ title + "\n");
         epgdata.append("S "+ subtitle + "\n");
