@@ -36,6 +36,9 @@ public:
     void EnableStream(int, bool );
     void OpenStream(int );
     void Close();
+    int GetTotalTime(int streamID, bool enable);
+    int GetTime();
+    int64_t SeekStream(int64_t position, int whence);
     void DemuxFlush();
     int GetCapabilities();
     void* GetStream(int streamId) const;

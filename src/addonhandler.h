@@ -294,6 +294,18 @@ std::string path;
         kodi.inputstream->toAddon->enable_stream(kodi.inputstream,streamID,enable);
     }
 
+    int AddonHandler::GetTotalTime(int streamID, bool enable) {
+        return kodi.inputstream->toAddon->get_total_time(kodi.inputstream);
+    }
+
+    int AddonHandler::GetTime() {
+        return kodi.inputstream->toAddon->get_time(kodi.inputstream);
+    }
+
+    int64_t AddonHandler::SeekStream(int64_t position, int whence) {
+        return kodi.inputstream->toAddon->seek_stream(kodi.inputstream, position, whence);
+    }
+
     void AddonHandler::OpenStream(int streamID) {
         kodi.inputstream->toAddon->open_stream(kodi.inputstream,streamID);
     }
