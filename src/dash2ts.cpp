@@ -134,7 +134,7 @@ main(int argc, char *argv[])
     bool ret = h->OpenURL(url);
 
     if (ret) {
-        p->StreamPlay(h);  // Get Stream and send it to UDP Port
+        p->StreamPlay(h);  // Get Stream and send it to TCP Port
     }
     else {
         printf("Can't Open URL\n");

@@ -171,7 +171,7 @@ int main(int argc, char *argv[]) {
                 if (!strcmp(it->first.c_str(),"inputstream.adaptive.license_key")) {
                     license = it->second;
                 }
-                printf(">%s< >%s<\n",it->first.c_str(),it->second.c_str());
+                //printf(">%s< >%s<\n",it->first.c_str(),it->second.c_str());
                 
             }
 

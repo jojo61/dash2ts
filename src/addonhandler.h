@@ -350,6 +350,21 @@ std::string path;
         return -1;
     }
 
+    int AddonHandler::GetTotalTime(int streamID, bool enable) {  // Time in Milliseconds
+        return kodi.inputstream->toAddon->get_total_time(kodi.inputstream); 
+    }
+
+    int AddonHandler::GetTime() {       // Time in Milliseconds
+        return kodi.inputstream->toAddon->get_time(kodi.inputstream);
+    }
+
+    int64_t AddonHandler::SeekStream(int64_t position, int whence) {
+        if (!kodi.inputstream->toAddon->seek_stream) // does lib provide this function
+            return -1;
+
+        return kodi.inputstream->toAddon->seek_stream(kodi.inputstream, position, whence);
+    }
+
     char * AddonHandler::get_user_path(void * kodiBase) {
         char *c = strdup(path.c_str());
         return c;

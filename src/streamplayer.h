@@ -47,6 +47,9 @@ public:
     bool AddSettingString(void *, char *, const char * );
     int LoadXML(std::string );
     void SelectStreams(int *, int*);
+    int GetTotalTime(int streamID, bool enable);
+    int GetTime();
+    int64_t SeekStream(int64_t position, int whence);
     
 };
 
