@@ -1,5 +1,3 @@
-
-#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -8,22 +6,16 @@
 #include <vector>
 #include <fstream>
 #include <unistd.h>
-#include <tinyxml2.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h> 
 #include <fcntl.h>
 #include <thread>
 
-
 #include "mpegts/mpegts_muxer.h"
 #include "circular_buffer.hpp"
 
 #include "kodi/versions.h"
-#include "kodi/Filesystem.h"
-#include "kodi/c-api/gui/general.h"
-#include "kodi/c-api/addon_base.h"
 #include "kodi/c-api/addon-instance/inputstream.h"
 
 extern "C" {

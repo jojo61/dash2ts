@@ -2,6 +2,7 @@
 
 #include <unistd.h>
 #include "streamplayer.h"
+#include "addonhandler.h"
 
 extern std::string headers;
 extern bool verbose;

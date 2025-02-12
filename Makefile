@@ -18,6 +18,13 @@ SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s')
 #OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 OBJS := ./build/./src/dash2ts.cpp.o\
 		./build/./src/streamplayer.cpp.o\
+		./build/./src/xmlhandler.cpp.o\
+		./build/./src/StringUtils.cpp.o\
+		./build/./src/curlhandler.cpp.o\
+		./build/./src/demuxpacket.cpp.o\
+		./build/./src/addonhandler.cpp.o\
+		./build/./src/bitstreamconverter.cpp.o\
+		./build/./src/audioconverter.cpp.o\
 	    ./build/./src/mpegts/mpegts_muxer.cpp.o\
 		./build/./src/mpegts/simple_buffer.cpp.o\
 		./build/./src/mpegts/common.cpp.o\
@@ -37,6 +44,7 @@ INC_FLAGS := -I$(KODI_ADDON_INCLUDE) -I/usr/local/include  $(shell pkg-config --
 CPPFLAGS := $(INC_FLAGS) -MMD -MP -ggdb
 
 # The final build step.
+all: $(BUILD_DIR)/$(TARGET_EXEC)
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
 
