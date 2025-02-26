@@ -25,7 +25,7 @@ HttpClient::~HttpClient()
 
 void HttpClient::ClearSession() {
   m_uuid = GetUUID();
-  m_beakerSessionId = "";  
+  //m_beakerSessionId = "";  
 }
 
 std::string HttpClient::GetUUID()

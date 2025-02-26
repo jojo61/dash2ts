@@ -23,19 +23,21 @@ static constexpr int CURL_OFF = 0L;
 static constexpr int CURL_ON = 1L;
 
 struct ch {
-struct curl_slist *m_header=NULL;
-std::string   m_protoLine;
-HeaderParams m_params;
-unsigned char *streambuffer=NULL;
-int maxstreambuffer;
-int writeptr,readptr;
-char *m_cookie;
-void *curl;
-std::string m_postdata;
-int post;
-int fp;
-char *useragent;
+    struct curl_slist *m_header=NULL;
+    std::string   m_protoLine;
+    HeaderParams m_params;
+    unsigned char *streambuffer=NULL;
+    int maxstreambuffer;
+    int writeptr,readptr;
+    char *m_cookie;
+    void *curl;
+    std::string m_postdata;
+    int post;
+    int fp;
+    char *useragent;
 };
+
+bool CurlInit = false;
 
 std::mutex curlMutex;
 
@@ -209,12 +211,21 @@ const char * GetValue(const char *name,struct ch *c) {
 void * curl_create(void * base, const char *url) {
 
     std::lock_guard<std::mutex> lock(curlMutex);
+    
+    if (!CurlInit) {
+        // Initialize global.
+        curl_global_init(CURL_GLOBAL_ALL);
+        CurlInit = true;
+    }
+    
     int i = get_curl_instance();
     if (i == -1)
         return nullptr;
-    if (verbose) printf("Open %d Handle %d URL %s\n",verbose, i,url);
     struct ch *c = &curlhandler[i];    
+
+    if (verbose) printf("Open %d Handle %d URL %s\n",verbose, i,url);
     c->curl = curl_easy_init();
+    
     if (c->curl) {
         curl_easy_setopt(c->curl, CURLOPT_URL, url);
         c->readptr = 0;
@@ -251,15 +262,17 @@ bool curl_open(void *base, void *curl, unsigned int flags) {
             curl_easy_setopt(c->curl, CURLOPT_POST,1);
             curl_easy_setopt(c->curl, CURLOPT_POSTFIELDS, c->m_postdata.c_str());
             curl_easy_setopt(c->curl, CURLOPT_POSTFIELDSIZE, c->m_postdata.length());
+            //printf("Postdata len %d >%s<\n",c->m_postdata.length(),c->m_postdata.c_str());
         }
+        curl_easy_setopt(c->curl, CURLOPT_RANGE, "0-");
         //curl_easy_setopt(c->curl, CURLOPT_DEBUGFUNCTION, debug_callback);
         curl_easy_setopt(c->curl, CURLOPT_VERBOSE, CURL_OFF);
         curl_easy_setopt(c->curl, CURLOPT_COOKIEFILE, "");
         if (c->m_cookie) {
             curl_easy_setopt(c->curl, CURLOPT_COOKIE, c->m_cookie);
         }
-        else
-            curl_easy_setopt(c->curl, CURLOPT_COOKIELIST, "FLUSH");
+        
+        //curl_easy_setopt(c->curl, CURLOPT_COOKIELIST, "FLUSH");
         curl_easy_setopt(c->curl, CURLOPT_REFERER, NULL);
         curl_easy_setopt(c->curl, CURLOPT_AUTOREFERER, CURL_OFF);
         curl_easy_setopt(c->curl, CURLOPT_CONNECTTIMEOUT, 10L);
@@ -393,9 +406,14 @@ void close_file (void* kodiBase, void* curl) {
     curl_slist_free_all(c->m_header);
     if (c->streambuffer)
         free(c->streambuffer);
+    if (c->useragent)
+        free(c->useragent);
+    if (c->m_cookie)
+        free(c->m_cookie);
     c->streambuffer = NULL;
     c->m_header=NULL;
     c->curl = NULL;
+    c->useragent = NULL;
     c->m_params.clear();
     c->m_cookie = NULL;
     //printf("close_file\n");

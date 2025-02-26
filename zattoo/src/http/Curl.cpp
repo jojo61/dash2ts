@@ -78,15 +78,16 @@ std::string Curl::Request(const std::string& action, const std::string& url, con
     int &statusCode)
 {
   
-
+  
   if (!(file = curl_create(nullptr,url.c_str())))
   {
     statusCode = -1;
     return "";
   }
-
-  curl_add_option(0,file,ADDON_CURL_OPTION_PROTOCOL, "customrequest", action.c_str());
-  curl_add_option(0,file,ADDON_CURL_OPTION_HEADER, "acceptencoding", "gzip");
+  
+  //curl_add_option(0,file,ADDON_CURL_OPTION_PROTOCOL, "customrequest", action.c_str());
+  //curl_add_option(0,file,ADDON_CURL_OPTION_HEADER, "acceptencoding", "gzip");
+  curl_add_option(0,file,ADDON_CURL_OPTION_HEADER, "accept-charset", "UTF-8,*;q=0.8");
   if (!postData.empty())
   {
     std::string base64 = Base64Encode((const unsigned char *) postData.c_str(), postData.size(), false);
@@ -129,7 +130,7 @@ std::string Curl::Request(const std::string& action, const std::string& url, con
   for (int i=0;i<1;i++)
   {
     std::string cookie = cookies;
-    
+    //Log(ADDON_LOG_DEBUG, "Got cookisstring: >%s<",cookies.c_str());
     std::string::size_type paramPos = cookie.find(';');
     if (paramPos != std::string::npos)
       cookie.resize(paramPos);
@@ -139,7 +140,7 @@ std::string Curl::Request(const std::string& action, const std::string& url, con
       continue;
     }
     m_cookies[parts[0]] = parts[1];
-    //Log(ADDON_LOG_DEBUG, "Got cookie: %s = %s", parts[0].c_str(),parts[1].c_str());
+    //Log(ADDON_LOG_DEBUG, "Got cookie: >%s< = >%s<", parts[0].c_str(),parts[1].c_str());
   }
 
   m_location = GetPropertyValues(file,ADDON_FILE_PROPERTY_RESPONSE_HEADER, "Location");

@@ -149,20 +149,24 @@ std::string ZattooEpgProvider::GetDetails(int ProgrammId, time_t validUntil) {
 
 void ZattooEpgProvider::DetailsThread()
 {
+  time_t start,end;
   std::this_thread::sleep_for(std::chrono::seconds(10));
   Log(ADDON_LOG_DEBUG, "EPG thread started");
   Cache::Cleanup();   // Cleanup old cache files on start
   while (m_detailsThreadRunning)
   {
-    time_t start = time(0);
-    time_t end = start + 8 * 3600;  // 8 hours
+    //printf("Start EPG Detail Update\n");
+    start = time(0);
+    end = start + 8 * 3600;  // 8 hours
     ZattooEpgProvider::LoadEPGForChannel(start,end, true);  // Read 8h epg with Details
+    //printf("Start EPG additional Update\n");
     for (int i = 0;i< 3;i++) {                              // Read additional 24h EPG without Details (is anyway not available)
       start = end;
       end = end + 8 * 3600;
       ZattooEpgProvider::LoadEPGForChannel(start,end, false);
     }
-    std::this_thread::sleep_for(std::chrono::hours(2));  // Sleep 2h
+    //printf("Finished update wait for 1 h\n");
+    std::this_thread::sleep_for(std::chrono::hours(1));  // Sleep 1h
     Cache::Cleanup();
   }
 }
@@ -238,6 +242,7 @@ bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd, bool read
       }
       
       Log(ADDON_LOG_DEBUG,"Channel %s",cid.c_str());
+      //printf("Channel %s\n",cid.c_str());
       std::this_thread::sleep_for(std::chrono::seconds(1));
       epgdata = "C "+VDRid+"\n";
       more_details = true;

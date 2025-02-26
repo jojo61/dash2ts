@@ -1,6 +1,7 @@
 
 
 #include <unistd.h>
+#include <signal.h>
 #include "streamplayer.h"
 #include "addonhandler.h"
 
@@ -21,6 +22,21 @@ void usage() {
     printf("       http_headers default is %s\n",headers.c_str());
     printf("       only -d or -w is allowed. Not both\n");
     exit(0);
+}
+
+StreamPlayer *p;
+AddonHandler *h;
+
+void signal_callback_handler(int signum)
+{
+    printf("Caught signal %d\n",signum);
+    // Cleanup and close up stuff here
+    // Terminate program
+    if (p)
+        delete p;
+    if (h)
+        delete h;
+    exit(signum);
 }
 
 int
@@ -98,8 +114,11 @@ main(int argc, char *argv[])
         printf("Server Port %d \n",portno);
     }
 
-    auto h = new AddonHandler(path_to_kodi); // Init AddonHandler
-    auto p = new StreamPlayer(portno);       // Init Player 
+    // Register signal and signal handler
+    signal(SIGINT, signal_callback_handler);
+
+    h = new AddonHandler(path_to_kodi); // Init AddonHandler
+    p = new StreamPlayer(portno);       // Init Player 
 
     // Load the inputstream.adaptive Library and get the API Version
     api_version = h->LoadAddon();

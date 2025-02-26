@@ -187,7 +187,6 @@ bool Session::LoadAppTokenFromTokenJson(std::string tokenJsonPath) {
     Log(ADDON_LOG_DEBUG, "Failed to load json from %s", tokenJsonPath.c_str());
     return false;
   }
-
   m_appToken = doc["session_token"].GetString();
   return true;
 }

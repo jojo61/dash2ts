@@ -384,10 +384,14 @@ void close_file (void* kodiBase, void* curl) {
     curl_slist_free_all(c->m_header);
     if (c->streambuffer)
         free(c->streambuffer);
+    if (c->useragent)
+        free(c->useragent);
+    if (c->url)
+        free(c->url);
     c->streambuffer = NULL;
     c->m_header=NULL;
-    c->curl = NULL;
     c->m_params.clear();
+    c->curl = NULL;
     //printf("close_file\n");
 }
 
@@ -442,7 +446,7 @@ char ** get_property_values(void* kodiBase, void* curl, int type, const char* na
 
 extern std::string path;
 char * translate_special_protocol(void * kodiBase, const char *proto) {
-    char *c = strdup("");
+    char *c;
     if (!strcmp("special://xbmcbinaddons/inputstream.adaptive/",proto)) {
         std::string newpath = path + "/addons/inputstream.adaptive";
         c = strdup(newpath.c_str());
