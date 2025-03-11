@@ -22,6 +22,12 @@ typedef HeaderParams::iterator HeaderParamsIter;
 static constexpr int CURL_OFF = 0L;
 static constexpr int CURL_ON = 1L;
 
+enum {
+    C_CLOSE=0,
+    C_OPEN,
+    C_BUSY
+};
+
 struct ch {
     struct curl_slist *m_header=NULL;
     std::string   m_protoLine;
@@ -35,6 +41,8 @@ struct ch {
     int post;
     int fp;
     char *useragent;
+    char *url;
+    int status=C_CLOSE;
 };
 
 bool CurlInit = false;
@@ -43,12 +51,52 @@ std::mutex curlMutex;
 
 struct ch curlhandler[10];
 
-int get_curl_instance() {
-    for (int i =0;i<MAX_INSTANCE;i++)
-        if (curlhandler[i].curl == NULL)
+int get_curl_instance(const char *url) {
+    char host[100];
+    int i;
+
+    if (url) {
+        
+        if (sscanf(url, "http://%99[^/]", host) != 1)
+            sscanf(url, "https://%99[^/]", host);
+
+        for (i=0;i<MAX_INSTANCE;i++) {
+            if (verbose) printf("Status1 %d %d >%s< >%s<\n",i,curlhandler[i].status,host,curlhandler[i].url == NULL ? "":curlhandler[i].url);
+            if (curlhandler[i].url && !strcmp(curlhandler[i].url,host) && curlhandler[i].status == C_OPEN) { // find first open connection to host
+                if (verbose) printf("found open connection %d\n",i);
+                return i;
+            }
+        }
+    }
+
+    for (i =0;i<MAX_INSTANCE;i++) {
+        //printf("Status %d %d\n",i,curlhandler[i].status);
+        if (curlhandler[i].status == C_CLOSE) {
+            if (curlhandler[i].url)
+                free(curlhandler[i].url);
+            if (url)
+                curlhandler[i].url = strdup(host);
             return i;
+        }
+    }
+    // All instances are open so we need to close one
+    for (int j=0;j<MAX_INSTANCE;j++) {  // search for first instance that is not busy
+        if (curlhandler[j].status == C_OPEN) { // find open connection that we can close
+            printf("close and reuse unused open connection %d\n",j);
+            curl_easy_cleanup(curlhandler[j].curl);  // clear connection
+            if (curlhandler[j].url)
+                free(curlhandler[j].url);
+            if (url)
+                curlhandler[j].url = strdup(host);
+            curlhandler[j].curl = NULL;
+            curlhandler[j].status = C_CLOSE;
+            return j;
+        }
+    }
+    // Everything is busy (should not happen)
     return -1;
 }
+
 
 extern const char * GetValue(const char *,struct ch *);
 /* curl calls this routine to get more data */
@@ -218,19 +266,20 @@ void * curl_create(void * base, const char *url) {
         CurlInit = true;
     }
     
-    int i = get_curl_instance();
-    if (i == -1)
+    int i = get_curl_instance(url);
+    if (i == -1) {  
         return nullptr;
-    struct ch *c = &curlhandler[i];    
-
-    if (verbose) printf("Open %d Handle %d URL %s\n",verbose, i,url);
-    c->curl = curl_easy_init();
-    
+    }
+    struct ch *c = &curlhandler[i]; 
+    if (c->curl == NULL)   
+        c->curl = curl_easy_init();
+    if (verbose) printf("Open Handle %d URL %s\n",i,url);
     if (c->curl) {
         curl_easy_setopt(c->curl, CURLOPT_URL, url);
         c->readptr = 0;
         c->writeptr = 0;
         c->fp = -1;
+        c->status = C_BUSY;
     }
     return c;
 
@@ -245,7 +294,7 @@ bool curl_open(void *base, void *curl, unsigned int flags) {
         curl_easy_setopt(c->curl, CURLOPT_NOPROGRESS, 1L);
         curl_easy_setopt(c->curl, CURLOPT_USERAGENT, c->useragent);
         curl_easy_setopt(c->curl, CURLOPT_MAXREDIRS, 50L);
-        curl_easy_setopt(c->curl, CURLOPT_TCP_KEEPALIVE, 1L);
+        curl_easy_setopt(c->curl, CURLOPT_TCP_KEEPALIVE,1L);
         curl_easy_setopt(c->curl, CURLOPT_HTTPHEADER, c->m_header);
         curl_easy_setopt(c->curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(c->curl, CURLOPT_SSL_VERIFYPEER, 0);
@@ -372,7 +421,7 @@ bool curl_add_option(void* kodiBase, void* curl, int type, const char* name, std
 
 void * open_file_for_write(void* kodi, const char *filename, bool overwrite) {
     std::lock_guard<std::mutex> lock(curlMutex);
-    int i = get_curl_instance();
+    int i = get_curl_instance(NULL);
     if (i == -1)
         return nullptr;
     if (verbose) printf("Open Handle %d File %s\n",i,filename);
@@ -402,19 +451,19 @@ void close_file (void* kodiBase, void* curl) {
         c->curl = NULL;
         return;
     }
-    curl_easy_cleanup(c->curl);
+    //curl_easy_cleanup(c->curl);
     curl_slist_free_all(c->m_header);
     if (c->streambuffer)
         free(c->streambuffer);
     if (c->useragent)
         free(c->useragent);
-    if (c->m_cookie)
-        free(c->m_cookie);
+    //if (c->url)
+    //    free(c->url);
     c->streambuffer = NULL;
     c->m_header=NULL;
-    c->curl = NULL;
-    c->useragent = NULL;
     c->m_params.clear();
+    //c->curl = NULL;
+    c->status = C_OPEN;
     c->m_cookie = NULL;
     //printf("close_file\n");
 }

@@ -13,6 +13,7 @@
 #include <netdb.h> 
 #include "../http/Cache.h"
 #include "../md5.h"
+#include "../ZatData.h"
 
 extern bool enable_cache;
 
@@ -48,9 +49,10 @@ ZattooEpgProvider::~ZattooEpgProvider() {
     m_detailsThread.join();
 }
 
-std::string ZattooEpgProvider::svdrpsend(std::string& cmd, std::string& data) {
+std::string ZattooEpgProvider::svdrpsend(std::string& cmd, std::string& data , bool reuse) {
 
     // Open output Socket
+    static int sockfd = -1;
     char buffer[1000];
     std::string result = "";
     std::string mycmd;
@@ -58,51 +60,70 @@ std::string ZattooEpgProvider::svdrpsend(std::string& cmd, std::string& data) {
       mycmd = cmd+"\n";
     else
       mycmd = cmd+"\nquit\n";
-    struct sockaddr_in serv_addr;
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    
-    if (sockfd < 0) {
-        printf("ERROR opening socket\n");
-        return result;
-    }
+      
+    if (sockfd == -1) {
+        struct sockaddr_in serv_addr;
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        
+        if (sockfd < 0) {
+            printf("ERROR %d opening socket\n",sockfd);
+            std::this_thread::sleep_for(std::chrono::seconds(4));
+            return result;
+        }
+        
 
-    struct hostent *server = gethostbyname("127.0.0.1");
-    if (server == NULL) {
-        printf("ERROR, no such host\n");
-        close(sockfd);
-        return result;
-    }
-    
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, 
-        (char *)&serv_addr.sin_addr.s_addr,
-        server->h_length);
-    serv_addr.sin_port = htons(6419);
+        struct hostent *server = gethostbyname("127.0.0.1");
+        if (server == NULL) {
+            printf("ERROR, no such host\n");
+            close(sockfd);
+            sockfd = 1;
+            return result;
+        }
+        
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *)server->h_addr, 
+            (char *)&serv_addr.sin_addr.s_addr,
+            server->h_length);
+        serv_addr.sin_port = htons(6419);
 
-    int flags = fcntl(sockfd, F_GETFL);
-    fcntl(sockfd, F_SETFL, flags&~SOCK_NONBLOCK);
+        int flags = fcntl(sockfd, F_GETFL);
+        fcntl(sockfd, F_SETFL, flags&~SOCK_NONBLOCK);
 
-    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-        //printf("ERROR connecting\n");
-        close(sockfd);
-        return result;
+        if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
+            //printf("ERROR connecting\n");
+            close(sockfd);
+            sockfd = -1;
+            return result;
+        }
+
     }
     ssize_t r = write(sockfd,mycmd.c_str(),mycmd.size());
+    //printf("svdrpsend write cmd %d %d\n",mycmd.size(),r);
     if (data.size()) {
        r = write(sockfd,data.c_str(),data.size());
-       mycmd = "quit\n";
-       r = write(sockfd,mycmd.c_str(),mycmd.size());
+       //printf("svdrpsend write data  %d %d\n",data.size(),r);
+       if (!reuse) {
+          mycmd = "quit\n";
+          r = write(sockfd,mycmd.c_str(),mycmd.size());
+       }
     }
     
     ssize_t i;
-    do {
-      i = read(sockfd,buffer,sizeof(buffer));      
-      if (i > 0)
-        result.append(buffer,i);
-    } while (i > 0);
-    //printf(" Result %s\n",result.c_str());
-    close (sockfd);
+    if (!reuse) { 
+      do {
+        i = read(sockfd,buffer,sizeof(buffer));      
+        if (i > 0)
+          result.append(buffer,i);
+      } while (i > 0);
+    }
+
+    if (!reuse) {
+      //printf("Close socket\n");
+      close (sockfd);
+      sockfd = -1;
+    }
+
     return result;
 
 }
@@ -150,35 +171,46 @@ std::string ZattooEpgProvider::GetDetails(int ProgrammId, time_t validUntil) {
 void ZattooEpgProvider::DetailsThread()
 {
   time_t start,end;
+  std::string data;
   std::this_thread::sleep_for(std::chrono::seconds(10));
   Log(ADDON_LOG_DEBUG, "EPG thread started");
   Cache::Cleanup();   // Cleanup old cache files on start
+  std::string cmd = "lstc";
+  vdr_channels.clear();
+  while (!vdr_channels.size()) {
+    vdr_channels = svdrpsend(cmd,data, false);
+    if (!vdr_channels.size()) {
+      std::this_thread::sleep_for(std::chrono::seconds(4));
+    }
+  }
   while (m_detailsThreadRunning)
   {
-    //printf("Start EPG Detail Update\n");
+    printf("Start EPG Detail Update\n");
     start = time(0);
     end = start + 8 * 3600;  // 8 hours
     ZattooEpgProvider::LoadEPGForChannel(start,end, true);  // Read 8h epg with Details
-    //printf("Start EPG additional Update\n");
+    printf("Start EPG additional Update\n");
     for (int i = 0;i< 3;i++) {                              // Read additional 24h EPG without Details (is anyway not available)
       start = end;
       end = end + 8 * 3600;
       ZattooEpgProvider::LoadEPGForChannel(start,end, false);
     }
-    //printf("Finished update wait for 1 h\n");
+    printf("Finished update wait for 1 h\n");
     std::this_thread::sleep_for(std::chrono::hours(1));  // Sleep 1h
+    //std::this_thread::sleep_for(std::chrono::minutes(10));  // Sleep 1h
     Cache::Cleanup();
   }
 }
 
 bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd, bool readdetails) {
   
+  PVRStreamProperty properties;
   ZatChannel channel;
   std::string VDRid;
   std::string uniqueID;
   std::string epgdata;
   std::string cmd,details,data;
-  std::string result;
+  
   bool more_details = true;
   //CleanupAlreadyLoaded();
   //time_t tempStart = iStart - (iStart % (3600 / 2)) - 86400;
@@ -189,6 +221,7 @@ bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd, bool read
     if (tempEnd > iEnd) {
       tempEnd = iEnd;
     }
+    
     std::ostringstream urlStream;
     urlStream << m_providerUrl << "/zapi/v3/cached/" + m_powerHash + "/guide"
         << "?end=" << tempEnd << "&start=" << tempStart
@@ -216,34 +249,14 @@ bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd, bool read
 
       channel = m_visibleChannelsByCid[cid];
       VDRid = "I-"+std::to_string(channel.iUniqueId)+"-80-1";
-
-      if (channel.inVDR == 2) {
+      
+      if (vdr_channels.find("A="+std::to_string(channel.iUniqueId)+":") == std::string::npos) {
         continue;
       }
-
-      if (channel.inVDR == 0) {  // not yet testet
-        cmd = "lstc "+VDRid;
-        result.clear();
-        while (!result.size()) {
-          result = svdrpsend(cmd,data);
-          if (!result.size()) {
-            std::this_thread::sleep_for(std::chrono::seconds(4));
-          }
-        }
-        if (result.find("not defined") != std::string::npos) {
-          channel.inVDR = 2;    // not in channels.conf
-          m_visibleChannelsByCid[cid] = channel;   // store back
-          continue;
-        }
-        else {
-          channel.inVDR = 1;    // aktiv VDR channel
-          m_visibleChannelsByCid[cid] = channel;  // store back
-        }
-      }
-      
+ 
       Log(ADDON_LOG_DEBUG,"Channel %s",cid.c_str());
       //printf("Channel %s\n",cid.c_str());
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      //std::this_thread::sleep_for(std::chrono::milliseconds(100));
       epgdata = "C "+VDRid+"\n";
       more_details = true;
       const Value& programs = iter->value;
@@ -278,7 +291,7 @@ bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd, bool read
         std::string title = Utils::JsonStringOrEmpty(program, "t"); 
         std::string subtitle = Utils::JsonStringOrEmpty(program, "et");
         time_t startTime = program["s"].GetInt();
-       
+
         epgdata.append("E "+ std::to_string(programId) + " " + std::to_string(startTime) + " " + std::to_string(endTime - startTime) + "\n");  // set Event data
         epgdata.append("T "+ title + "\n");
         epgdata.append("S "+ subtitle + "\n");
@@ -305,8 +318,10 @@ bool ZattooEpgProvider::LoadEPGForChannel( time_t iStart, time_t iEnd, bool read
       }
       epgdata.append("c \n.\n");
       cmd = "pute";
-      svdrpsend(cmd,epgdata);
+      svdrpsend(cmd,epgdata,true);
     }
+    cmd = "quit";
+    svdrpsend(cmd,epgdata,false);
     tempStart = tempEnd;
     tempEnd = tempStart + 3600 * 5; //Add 5 hours
   }

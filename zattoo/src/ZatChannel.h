@@ -13,7 +13,8 @@ struct ZatChannel
   std::string name;
   std::string strLogoPath;
   std::string cid;
-  int inVDR;
+  std::string url;
+  std::string widevine;
 };
 
 #endif /* SRC_ZATCHANNEL_H_ */

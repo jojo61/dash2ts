@@ -144,9 +144,9 @@ int main(int argc, char *argv[]) {
             std::this_thread::sleep_for(std::chrono::seconds(3));
         }
         zatData->LoadChannels();
-        std::string channels = zatData->GetChannels();
 
         if (print_channels) {
+            std::string channels = zatData->GetChannels();
             printf("%s",channels.c_str());
             exit(0);
         }

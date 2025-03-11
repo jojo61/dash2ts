@@ -31,7 +31,7 @@ public:
   );
   virtual ~ZattooEpgProvider();
   bool LoadEPGForChannel(time_t iStart, time_t iEnd, bool details);
-  std::string svdrpsend(std::string& , std::string&);
+  std::string svdrpsend(std::string& , std::string&, bool reuse);
   std::string GetDetails(int ProgrammId, time_t validUntil);
 private:
   static std::mutex loadedTimeslotsMutex;
@@ -46,6 +46,7 @@ private:
   //Categories &m_categories;
   std::string m_powerHash;
   std::string m_providerUrl;
+  std::string vdr_channels;
   std::list<LoadedTimeslots> m_loadedTimeslots;
   std::map<std::string, ZatChannel> &m_visibleChannelsByCid;
   std::atomic<bool> m_detailsThreadRunning = {false};

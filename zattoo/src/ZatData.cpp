@@ -76,6 +76,7 @@ bool ZatData::ReadDataJson()
 
 bool ZatData::LoadChannels()
 {
+  PVRStreamProperty properties;
   std::map<std::string, ZatChannel> allChannels;
   int statusCode;
   std::string jsonString = m_httpClient->HttpGet(m_session->GetProviderUrl() + "/zapi/channels/favorites", statusCode);
@@ -125,7 +126,6 @@ bool ZatData::LoadChannels()
     channel.cid = cid;
     channel.iChannelNumber = ++channelNumber;
     channel.recordingEnabled = channelItem.HasMember("recording") ? channelItem["recording"].GetBool() : false;
-    channel.inVDR = 0;
     
     const Value& qualities = channelItem["qualities"];
     for (Value::ConstValueIterator itr2 = qualities.Begin();
@@ -143,6 +143,7 @@ bool ZatData::LoadChannels()
         channel.strLogoPath = "http://logos.zattic.com" + Utils::JsonStringOrEmpty(qualityItem, "logo_white_84");
       }
     }
+    
     PVRZattooChannelGroup &group = m_channelGroups[channelItem["group_index"].GetInt()];
     group.channels.insert(group.channels.end(), channel);
     allChannels[cid] = channel;
@@ -398,7 +399,7 @@ bool ZatData::IsDrmLimitApplied(Document& doc) {
   return doc.HasMember("drm_limit_applied") && doc["drm_limit_applied"].GetBool();
 }
 
-std::string ZatData::GetStreamUrl(Document& doc, PVRStreamProperty& properties) {
+std::string ZatData::GetStreamUrl(Document& doc, PVRStreamProperty& properties,ZatChannel* ownChannel) {
   if (!doc.HasMember("stream"))
   {
     return "";
@@ -413,6 +414,8 @@ std::string ZatData::GetStreamUrl(Document& doc, PVRStreamProperty& properties) 
     std::string licenseUrl = Utils::JsonStringOrEmpty(watchUrl, "license_url");
     properties.emplace_back("inputstream.adaptive.license_key", licenseUrl + "||A{SSM}|");
     properties.emplace_back("inputstream.adaptive.license_type", "com.widevine.alpha");
+    if (ownChannel)
+      ownChannel->widevine = licenseUrl;
     break;
   }
   Log(ADDON_LOG_DEBUG, "Got url: %s", url.c_str());
@@ -425,8 +428,17 @@ PVR_ERROR ZatData::GetChannelStreamProperties(const int uniqueID,
   PVR_ERROR ret = PVR_ERROR_FAILED;
 
   ZatChannel* ownChannel = FindChannel(uniqueID);
-  if (!ownChannel)
+  if (!ownChannel) {
+    printf("Channel not found\n");
     return ret;
+  }
+  if (ownChannel->url.size()) {
+    printf("Use saved url\n");
+    properties.emplace_back("streamurl", ownChannel->url);
+    properties.emplace_back("inputstream.adaptive.license_key", ownChannel->widevine + "||A{SSM}|");
+    return PVR_ERROR_NO_ERROR;
+  }
+
   Log(ADDON_LOG_DEBUG, "Get live url for channel %s", ownChannel->cid.c_str());
   
   bool forceWithoutDrm = GetDrmLevel() <= 0;
@@ -456,9 +468,10 @@ PVR_ERROR ZatData::GetChannelStreamProperties(const int uniqueID,
     doc.GetAllocator().Clear();
   }
 
-  std::string strUrl = GetStreamUrl(doc, properties);
+  std::string strUrl = GetStreamUrl(doc, properties, ownChannel);
   if (!strUrl.empty())
   {
+    ownChannel->url = strUrl;
     SetStreamProperties(properties, strUrl);
     properties.emplace_back("isrealtimestream", "true");
     ret = PVR_ERROR_NO_ERROR;
@@ -1197,7 +1210,7 @@ std::string ZatData::GetStreamUrlForProgram(const std::string& cid, int programI
     doc.GetAllocator().Clear();
   }
   
-  std::string strUrl = GetStreamUrl(doc, properties);
+  std::string strUrl = GetStreamUrl(doc, properties, NULL);
   return strUrl;
 }
 

@@ -117,7 +117,7 @@ private:
   PVRZattooChannelGroup* FindGroup(const std::string& strName);
   std::string GetStreamTypeString(bool withDrm);
   bool IsDrmLimitApplied(rapidjson::Document& doc);
-  std::string GetStreamUrl(rapidjson::Document& doc, PVRStreamProperty& properties);
+  std::string GetStreamUrl(rapidjson::Document& doc, PVRStreamProperty& properties,ZatChannel* ownChannel);
   std::string GetBasicStreamParameters(bool requiresDrm);
   std::string GetQualityStreamParameter(const std::string& cid, bool withoutDrm, bool& requiresDrm);
   int GetDrmLevel();
