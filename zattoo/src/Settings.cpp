@@ -42,9 +42,15 @@ bool CSettings::Load()
     if (!strcmp(text,"drmLevel")) {
       m_drmLevel = atoi(p_setting->GetText());
     }
+    if (!strcmp(text,"parentalPin")) {
+      if (p_setting->GetText()) // Is PIN Set 
+        m_parentalPin = strdup(p_setting->GetText());  // Use it
+      else
+        m_parentalPin = "1234"; // Use default
+    }
     p_setting = p_setting->NextSiblingElement("setting");
   }
-  m_parentalPin = "";
+ 
   m_smartTV = false;
   return true;
 }
