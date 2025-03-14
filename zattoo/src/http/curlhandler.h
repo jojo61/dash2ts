@@ -55,6 +55,7 @@ int get_curl_instance(const char *url) {
     char host[100];
     int i;
 
+#if 0
     if (url) {
         
         if (sscanf(url, "http://%99[^/]", host) != 1)
@@ -68,24 +69,29 @@ int get_curl_instance(const char *url) {
             }
         }
     }
-
+#endif
     for (i =0;i<MAX_INSTANCE;i++) {
         //printf("Status %d %d\n",i,curlhandler[i].status);
         if (curlhandler[i].status == C_CLOSE) {
-            if (curlhandler[i].url)
+            if (curlhandler[i].url) {
                 free(curlhandler[i].url);
+                curlhandler[i].url = NULL;
+            }
             if (url)
                 curlhandler[i].url = strdup(host);
             return i;
         }
     }
+#if 0
     // All instances are open so we need to close one
     for (int j=0;j<MAX_INSTANCE;j++) {  // search for first instance that is not busy
         if (curlhandler[j].status == C_OPEN) { // find open connection that we can close
             printf("close and reuse unused open connection %d\n",j);
             curl_easy_cleanup(curlhandler[j].curl);  // clear connection
-            if (curlhandler[j].url)
+            if (curlhandler[j].url) {
                 free(curlhandler[j].url);
+                curlhandler[j].url = NULL;
+            }
             if (url)
                 curlhandler[j].url = strdup(host);
             curlhandler[j].curl = NULL;
@@ -93,6 +99,7 @@ int get_curl_instance(const char *url) {
             return j;
         }
     }
+#endif
     // Everything is busy (should not happen)
     return -1;
 }
@@ -443,7 +450,7 @@ ssize_t write_file(void *kodi, void* curl, const void  *p, size_t size) {
 void close_file (void* kodiBase, void* curl) {
     
     struct ch *c = (struct ch *)curl;
-
+    
     //printf("Close %p Curl %p fp %d\n",c,c->curl,c->fp);
     if (c->fp >= 0 && c->curl == (void*)1) {
         close(c->fp);
@@ -451,19 +458,23 @@ void close_file (void* kodiBase, void* curl) {
         c->curl = NULL;
         return;
     }
-    //curl_easy_cleanup(c->curl);
+    curl_easy_cleanup(c->curl);
     curl_slist_free_all(c->m_header);
-    if (c->streambuffer)
+    if (c->streambuffer) {
         free(c->streambuffer);
-    if (c->useragent)
+        c->streambuffer = NULL;
+    }
+    if (c->useragent) {
         free(c->useragent);
+        c->useragent = NULL;
+    }
     //if (c->url)
     //    free(c->url);
     c->streambuffer = NULL;
     c->m_header=NULL;
     c->m_params.clear();
-    //c->curl = NULL;
-    c->status = C_OPEN;
+    c->curl = NULL;
+    c->status = C_CLOSE;
     c->m_cookie = NULL;
     //printf("close_file\n");
 }
