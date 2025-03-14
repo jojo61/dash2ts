@@ -52,7 +52,7 @@ std::mutex curlMutex;
 struct ch curlhandler[10];
 
 int get_curl_instance(const char *url) {
-    char host[100];
+//    char host[100];
     int i;
 
 #if 0
@@ -77,8 +77,8 @@ int get_curl_instance(const char *url) {
                 free(curlhandler[i].url);
                 curlhandler[i].url = NULL;
             }
-            if (url)
-                curlhandler[i].url = strdup(host);
+            //if (url)
+            //    curlhandler[i].url = strdup(host);
             return i;
         }
     }

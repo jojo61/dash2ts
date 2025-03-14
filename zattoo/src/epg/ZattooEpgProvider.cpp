@@ -98,14 +98,15 @@ std::string ZattooEpgProvider::svdrpsend(std::string& cmd, std::string& data , b
         }
 
     }
-    ssize_t r = write(sockfd,mycmd.c_str(),mycmd.size());
+    
+    write(sockfd,mycmd.c_str(),mycmd.size());
     //printf("svdrpsend write cmd %d %d\n",mycmd.size(),r);
     if (data.size()) {
-       r = write(sockfd,data.c_str(),data.size());
+       write(sockfd,data.c_str(),data.size());
        //printf("svdrpsend write data  %d %d\n",data.size(),r);
        if (!reuse) {
           mycmd = "quit\n";
-          r = write(sockfd,mycmd.c_str(),mycmd.size());
+          write(sockfd,mycmd.c_str(),mycmd.size());
        }
     }
     
