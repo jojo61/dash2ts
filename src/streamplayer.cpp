@@ -26,6 +26,8 @@ extern "C" {
 }
 
 bool verbose = false;
+bool saveonly = false;
+bool use_TCP = true;
 
 #include "bitstreamconverter.h"
 #include "audioconverter.h"
@@ -90,18 +92,29 @@ typedef struct {
 
 void sendpacket(uint8_t *p,int size) {
     int n = 0;
-    do {
-        ssize_t r = write(sockfd,p,size);
-        //if (r != size) printf("sendpacket only %d\n",r);
-        if (r < 0) {
-            usleep(10);
-            //printf("failure write %d\n",r);
+    if (use_TCP) {
+        do {
+            ssize_t r = write(sockfd,p,size);
+            //if (r != size) printf("sendpacket only %d\n",r);
+            if (r < 0) {
+                usleep(10);
+                //printf("failure write %d\n",r);
+            }
+            else {
+                n += r;
+            }
+            
+        } while (n < size);
+    } else {
+        if (saveonly) {
+            FILE* f = fopen("stream_debug.ts", "a");
+            fwrite(p, size, 1, f);
+            fclose(f);
+        } else {
+            // print to stdout
+            write(1, p, size);
         }
-        else {
-            n += r;
-        }
-        
-    } while (n < size);
+    }
 }
 
 // create Ringbuffer for output buffer
@@ -136,7 +149,10 @@ void muxOutput(mpegts::SimpleBuffer &rTsOutBuffer, uint8_t tag){
 }
 
 
-StreamPlayer::StreamPlayer(int portnr) {
+StreamPlayer::StreamPlayer(int portnr) {  // if use_TCP is not set then portnr is the startposition
+
+    if (!use_TCP)
+        startPosition = portnr;
 
     // Prepare NALU AUD
     NALUHeader.sync[0] = 0;
@@ -146,35 +162,36 @@ StreamPlayer::StreamPlayer(int portnr) {
     NALUHeader.nalu = 9;
     NALUHeader.length[0] = 0x10;
     
+    if (use_TCP) {
         // Open output Socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+            
+        if (sockfd < 0) {
+            printf("ERROR opening socket\n");
+            exit(0);
+        }
+
+        server = gethostbyname("127.0.0.1");
+        if (server == NULL) {
+            fprintf(stderr,"ERROR, no such host\n");
+            exit(0);
+        }
         
-    if (sockfd < 0) {
-        printf("ERROR opening socket\n");
-        exit(0);
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *)server->h_addr, 
+            (char *)&serv_addr.sin_addr.s_addr,
+            server->h_length);
+        serv_addr.sin_port = htons(portnr);
+
+        int flags = fcntl(sockfd, F_GETFL);
+        fcntl(sockfd, F_SETFL, flags&~SOCK_NONBLOCK);
+
+        if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
+            printf("ERROR connecting\n");
+            exit(0);
+        }
     }
-
-    server = gethostbyname("127.0.0.1");
-    if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host\n");
-        exit(0);
-    }
-    
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, 
-        (char *)&serv_addr.sin_addr.s_addr,
-        server->h_length);
-    serv_addr.sin_port = htons(portnr);
-
-    int flags = fcntl(sockfd, F_GETFL);
-    fcntl(sockfd, F_SETFL, flags&~SOCK_NONBLOCK);
-
-    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-        printf("ERROR connecting\n");
-        exit(0);
-    }
-
     //Create the map defining what datatype to map to what PID
     std::map<uint8_t, int> streamPidMap;
     streamPidMap[TYPE_AUDIO] = AUDIO_PID;
@@ -191,8 +208,9 @@ StreamPlayer::StreamPlayer(int portnr) {
 
 StreamPlayer::~StreamPlayer() {
     if (m_thread.joinable())
-        m_thread.join();  
-    close(sockfd);
+        m_thread.join();
+    if (use_TCP)  
+        close(sockfd);
 };
 #if 0
 void StreamPlayer::send_packet(uint8_t *p,int size) {
@@ -255,17 +273,17 @@ void StreamPlayer::StreamPlay(AddonHandler *h) {
     
     //m_thread = std::thread (&StreamPlayer::Send_thread,this);
 
-    if (verbose) printf("Sucessfull opened Addon\n");
+    if (verbose) fprintf(stderr, "Sucessfull opened Addon\n");
     h->GetCapabilities();
     
     if (h->GetStreamIDs()) {
         BitstreamConverterInit();
-        if (verbose) printf("Streamcount %d\n",IDs.m_streamCount);
+        if (verbose) fprintf(stderr,"Streamcount %d\n",IDs.m_streamCount);
         for (int i=0;i<IDs.m_streamCount;i++) {
-            if (verbose) printf("No. ID%d %d\n",i,IDs.m_streamIds[i]);
+            if (verbose) fprintf(stderr,"No. ID%d %d\n",i,IDs.m_streamIds[i]);
             h->GetStream(IDs.m_streamIds[i]);   // Build ID Table:
         }
-        if (verbose) printf("\n\n");
+        if (verbose) fprintf(stderr,"\n\n");
         h->SelectStreams(&VideoID,&AudioID);
         
         h->EnableStream(IDs.m_streamIds[VideoID],true);  // Enable Video Stream
@@ -276,6 +294,9 @@ void StreamPlayer::StreamPlay(AddonHandler *h) {
 
         h->GetStream(IDs.m_streamIds[VideoID]);  // Trigger start
         h->GetStream(IDs.m_streamIds[AudioID]);
+
+        if (!use_TCP)
+            h->PosTime(startPosition * 1000);
 
         mpegts::EsFrame esFrame;
         
@@ -288,7 +309,7 @@ void StreamPlayer::StreamPlay(AddonHandler *h) {
 
                 //printf("PTS %f Disptime %d StreamId %p\n",demux->pts,demux->duration,demux->iStreamId);
                 if (demux->iStreamId == DMX_SPECIALID_STREAMCHANGE) {
-                    if (verbose) printf("STREAMCHANGE DETECTED Size \n");
+                    if (verbose) fprintf(stderr,"STREAMCHANGE DETECTED Size \n");
                     
                     CBitstreamConverterClose();
                     h->OpenStream(IDs.m_streamIds[ID]);

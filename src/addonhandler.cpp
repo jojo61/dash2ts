@@ -342,6 +342,103 @@ std::string path;
         return demux;
     }
 
+    void AddonHandler::DenuxReset() {
+        if (!kodi.inputstream->toAddon->demux_reset) // does lib provide this function
+            return;
+
+        kodi.inputstream->toAddon->demux_reset(kodi.inputstream);
+    }
+
+    void AddonHandler::DenuxAbort() {
+        if (!kodi.inputstream->toAddon->demux_abort) // does lib provide this function
+            return;
+
+        kodi.inputstream->toAddon->demux_abort(kodi.inputstream);
+    }
+
+    void AddonHandler::DenuxSetSpeed(int speed) {
+        if (!kodi.inputstream->toAddon->demux_set_speed) // does lib provide this function
+            return;
+
+        kodi.inputstream->toAddon->demux_set_speed(kodi.inputstream, speed);
+    }
+
+    bool AddonHandler::PosTime(int ms) {
+        return kodi.inputstream->toAddon->pos_time(kodi.inputstream, ms);
+    }
+
+    int64_t AddonHandler::PositionStream() {
+        return kodi.inputstream->toAddon->position_stream(kodi.inputstream);
+    }
+
+    int64_t AddonHandler::LengthStream() {
+        return kodi.inputstream->toAddon->length_stream(kodi.inputstream);
+    }
+
+    bool AddonHandler::IsRealTimeStream() {
+        return kodi.inputstream->toAddon->is_real_time_stream(kodi.inputstream);
+    }
+
+    bool AddonHandler::SeekTime(double time, bool backwards, double *startpts) {
+        return kodi.inputstream->toAddon->demux_seek_time(kodi.inputstream, time, backwards, startpts);
+    }
+
+    const char* AddonHandler::GetPathList() {
+        if (!kodi.inputstream->toAddon->get_path_list) // does lib provide this function
+            return nullptr;
+
+        return kodi.inputstream->toAddon->get_path_list(kodi.inputstream);
+    }
+
+    bool AddonHandler::GetTimes(struct INPUTSTREAM_TIMES* times) {
+        if (!kodi.inputstream->toAddon->get_times) // does lib provide this function
+            return false;
+
+        return kodi.inputstream->toAddon->get_times(kodi.inputstream, times);
+    }
+
+    int AddonHandler::GetChapter() {
+        if (!kodi.inputstream->toAddon->get_chapter) // does lib provide this function
+            return -1;
+
+        return kodi.inputstream->toAddon->get_chapter(kodi.inputstream);
+    }
+
+    int AddonHandler::GetChapterCount() {
+        if (!kodi.inputstream->toAddon->get_chapter_count) // does lib provide this function
+            return -1;
+
+        return kodi.inputstream->toAddon->get_chapter_count(kodi.inputstream);
+    }
+
+    const char* AddonHandler::GetChapterName(int ch) {
+        if (!kodi.inputstream->toAddon->get_chapter_name) // does lib provide this function
+            return nullptr;
+
+        return kodi.inputstream->toAddon->get_chapter_name(kodi.inputstream, ch);
+    }
+
+    int64_t AddonHandler::GetChapterPos(int ch) {
+        if (!kodi.inputstream->toAddon->get_chapter_pos) // does lib provide this function
+            return -1;
+
+        return kodi.inputstream->toAddon->get_chapter_pos(kodi.inputstream, ch);
+    }
+
+    bool AddonHandler::SeekChapter(int ch) {
+        if (!kodi.inputstream->toAddon->seek_chapter) // does lib provide this function
+            return -1;
+
+        return kodi.inputstream->toAddon->seek_chapter(kodi.inputstream, ch);
+    }
+
+    int AddonHandler::BlockSizeStream() {
+        if (!kodi.inputstream->toAddon->block_size_stream) // does lib provide this function
+            return false;
+
+        return kodi.inputstream->toAddon->block_size_stream(kodi.inputstream);
+    }
+    
     int AddonHandler::Read(uint8_t* buf, int buf_size)
     {
         if (!kodi.inputstream->toAddon->read_stream)

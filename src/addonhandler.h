@@ -59,5 +59,21 @@ public:
     int GetTotalTime(int streamID, bool enable);
     int GetTime();
     int64_t SeekStream(int64_t position, int whence);
-
+    bool PosTime(int ms);
+ 
+    int64_t PositionStream();
+    int64_t LengthStream();
+    bool IsRealTimeStream();
+    bool SeekTime(double time, bool backwards, double* startpts);
+    void DenuxReset();
+    void DenuxAbort();
+    void DenuxSetSpeed(int speed);
+    const char *GetPathList();
+    bool GetTimes(INPUTSTREAM_TIMES *times);
+    int GetChapter();
+    int GetChapterCount();
+    const char *GetChapterName(int ch);
+    int64_t GetChapterPos(int ch);
+    bool SeekChapter(int ch);
+    int BlockSizeStream();
 };

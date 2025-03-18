@@ -29,6 +29,7 @@ private:
 
     
     int duration;  // Duration of one Frame in ms
+    int startPosition;
 
     struct {
         unsigned char  sync[4];
