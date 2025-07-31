@@ -166,6 +166,7 @@ std::string path;
         m_interface.toKodi->kodi_filesystem->translate_special_protocol = translate_special_protocol;
         m_interface.toKodi->kodi_filesystem->remove_directory = remove_directory;
         m_interface.toKodi->kodi_filesystem->get_directory = get_directory;
+        m_interface.toKodi->kodi_filesystem->directory_exists = directory_exists;
         m_interface.toKodi->kodi_filesystem->create_directory = create_directory;
         m_interface.toKodi->kodi_filesystem->free_directory = free_directory;
 

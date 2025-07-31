@@ -30,6 +30,7 @@ void close_file (void* kodiBase, void* curl);
 char ** get_property_values(void* kodiBase, void* curl, int type, const char* name, int* numvalues);
 char * translate_special_protocol(void * kodiBase, const char *proto);
 bool remove_directory(void * kodiBase, const char *dir);
+bool directory_exists(void * kodiBase, const char *path);
 bool create_directory(void * kodiBase, const char *dir);
 char * get_addon_info(void * kodiBase, const char *item);
 void SplitFilename (const std::string& str);

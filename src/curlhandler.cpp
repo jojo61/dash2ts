@@ -496,7 +496,14 @@ char ** get_property_values(void* kodiBase, void* curl, int type, const char* na
 extern std::string path;
 char * translate_special_protocol(void * kodiBase, const char *proto) {
     char *c;
+    if (verbose) printf("translate %s \n",proto);
     if (!strcmp("special://xbmcbinaddons/inputstream.adaptive/",proto)) {
+        std::string newpath = path + "/addons/inputstream.adaptive";
+        c = strdup(newpath.c_str());
+        printf("new path %s\n",c);
+        return c;
+    }
+    if (!strcmp("special://xbmcaltbinaddons/inputstream.adaptive/",proto)) {
         std::string newpath = path + "/addons/inputstream.adaptive";
         c = strdup(newpath.c_str());
         printf("new path %s\n",c);
@@ -535,6 +542,10 @@ void SplitFilename (const std::string& str)
   myfile =  str.substr(found+1);
 }
 
+bool directory_exists(void *kodiBase, const char* path) {
+    return true;
+}
+
 bool get_directory(void * kodiBase, 
                     const char *path,
                     const char* mask, 
@@ -543,30 +554,44 @@ bool get_directory(void * kodiBase,
     if (verbose)
         printf("Read Directory %s\n",path);
 
-    static VFSDirEntry item;
+    
     std::string dirpath = path;
+    int anz=0,i=0;
     
     *num_items=0;
-    *items = &item;
+   
     if (!strcmp(path,""))
        return true;
 
     for (const auto & entry : std::filesystem::directory_iterator(dirpath)) {
-        std::string tmp = entry.path();
-        if ( tmp.find("ssd_") != std::string::npos) {
-            SplitFilename(tmp);
-            item.label = strdup(myfile.c_str());
-            item.path = strdup(tmp.c_str());
-            if (verbose) printf("Got File %s in %s\n",item.label,item.path);
-            *num_items = 1;
-            *items = &item;
-            return true;
-        }
+        anz++;
     }
+    
+    VFSDirEntry* item = static_cast<VFSDirEntry*>(malloc(anz*sizeof(VFSDirEntry)));
+
+    for (const auto & entry : std::filesystem::directory_iterator(dirpath)) {
+        std::string tmp = entry.path();
+        SplitFilename(tmp);
+        item[i].label = strdup(myfile.c_str());
+        item[i].path = strdup(tmp.c_str());
+        item[i].properties = nullptr;
+        item[i].folder = false;
+        if (verbose) printf("Got %d File %s in %s\n",i,item[i].label,item[i].path);
+        i++;
+    }
+
+    *num_items = anz;
+    *items = item;
+    if (anz > 0)
+        return true;
     return false;
 } 
 
 void free_directory(void* kodiBase, struct VFSDirEntry* items, unsigned int num_items) {
+    if (verbose) printf("free_directory got %d items to delete\n",num_items);
+    
+    free((void *)items);
+    
     return ;
 }
 

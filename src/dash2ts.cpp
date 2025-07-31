@@ -5,12 +5,19 @@
 #include "streamplayer.h"
 #include "addonhandler.h"
 
+static const char *const VERSION = "1.00"
+#ifdef GIT_REV
+    "-GIT-" GIT_REV
+#endif
+    ;
+
 extern std::string headers;
 extern bool verbose;
 
 std::string& Trim(std::string &, const char* const );
 
 void usage() {
+    printf("dash2ts Version %s\n",VERSION);
     printf("Usage: dash2ts -u url_to_manifest.mpd\n");
     printf("               -p portnr\n");
     printf("              [-k path_to_kodi]\n");
