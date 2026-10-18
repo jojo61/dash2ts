@@ -194,8 +194,9 @@ StreamPlayer::StreamPlayer(int portnr) {  // if use_TCP is not set then portnr i
     }
     //Create the map defining what datatype to map to what PID
     std::map<uint8_t, int> streamPidMap;
-    streamPidMap[TYPE_AUDIO] = AUDIO_PID;
+    
     streamPidMap[TYPE_VIDEO] = VIDEO_PID;
+    streamPidMap[TYPE_AUDIO] = AUDIO_PID;
 
     // Create TS Multiplxer 
     lMuxer = new mpegts::MpegTsMuxer(streamPidMap, PMT_PID, VIDEO_PID,mpegts::MpegTsMuxer::MuxType::segmentType);
@@ -270,6 +271,7 @@ void * StreamPlayer::Send_thread() {
 
 void StreamPlayer::StreamPlay(AddonHandler *h) {
     int VideoID=-1,AudioID=-1;
+    int sendpmt=100;
     
     //m_thread = std::thread (&StreamPlayer::Send_thread,this);
 
@@ -350,11 +352,11 @@ void StreamPlayer::StreamPlay(AddonHandler *h) {
                         esFrame.mPid = VIDEO_PID;
                         esFrame.mExpectedPesPacketLength = 0;
                         esFrame.mCompleted = true;
-#if 0                      
-                        time_t now;
-                        now = time(0);
-                        if ((now % 10) == 0)
-                            makepmt = true;  // send PMT every 10 sek
+#if 1                      
+                        if (!--sendpmt) {
+                            makepmt = true;
+                            sendpmt = 100;
+                        }
 #endif
                         //Multiplex your data
                         lMuxer->encode(esFrame,1,makepmt);

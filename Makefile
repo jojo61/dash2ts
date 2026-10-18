@@ -8,7 +8,7 @@ KODI_ADDON_INCLUDE ?= src/addons/kodi-dev-kit/include
 BUILD_DIR := ./build
 SRC_DIRS := ./src
 
-LDFLAGS :=  -ltinyxml2 -lcurl -lavformat  -lswresample -lavcodec -lavfilter  -lavutil
+LDFLAGS :=  -ltinyxml2 -lcurl -lavformat  -lswresample -lavcodec -lavfilter  -lavutili -ldl
 # Find all the C and C++ files we want to compile
 # Note the single quotes around the * expressions. The shell will incorrectly expand these otherwise, but we want to send the * directly to the find command.
 SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s')
@@ -41,7 +41,7 @@ INC_FLAGS := -I$(KODI_ADDON_INCLUDE) -I/usr/local/include  $(shell pkg-config --
 
 # The -MMD and -MP flags together generate Makefiles for us!
 # These files will have .d instead of .o as the output.
-CPPFLAGS := $(INC_FLAGS) -MMD -MP -ggdb
+CPPFLAGS := $(INC_FLAGS) -MMD -MP -ggdb -std=c++17
 
 # The final build step.
 all: $(BUILD_DIR)/$(TARGET_EXEC)

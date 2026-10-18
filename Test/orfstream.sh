@@ -37,29 +37,35 @@ PORT=${2}
 
 DRM=""
 
+JSON=$(wget --header='Authorization: Basic b3JmX29uX3Y0MzpqRlJzYk5QRmlQU3h1d25MYllEZkNMVU41WU5aMjhtdA=='\                                                    --header='User_Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'\
+       -q -O /tmp/channels.json https://api-tvthek.orf.at/api/v4.3/livestreams)     
+
 # There is a way to specify multiple URLs in the same script. The selection is
 # then controlled by the extra parameter passed by IPTV plugin to the script
 case ${PARAMETER} in
     1)
-        #URL="https://orf1-247.mdn.ors.at/orf/orf1/qxa-247/manifest.mpd"
-	URL="https://api-tvthek.orf.at/api/v4.3/livestream/14379066"
+	#URL="https://api-tvthek.orf.at/api/v4.3/livestream/14379066"
+	ID=$(jq  .orf1.items[0] /tmp/channels.json | grep \"id | cut -f4 -d " " | cut -f1 -d ",")
         ;;
     2)
-        #URL="https://orf2-247.mdn.ors.at/orf/orf2/qxa-247/manifest.mpd"
-	URL="https://api-tvthek.orf.at/api/v4.3/livestream/14390185" # Orf 2 Salzburg
+	#URL="https://api-tvthek.orf.at/api/v4.3/livestream/14390185" # Orf 2 Salzburg
+	ID=$(jq  .orf2.items[0] /tmp/channels.json | grep \"id | cut -f4 -d " " | cut -f1 -d ",")
         ;;
     3)
-        #URL="https://orf3-247.mdn.ors.at/orf/orf3/qxa-247/manifest.mpd"
-	URL="https://api-tvthek.orf.at/api/v4.3/livestream/14378956"
+	#URL="https://api-tvthek.orf.at/api/v4.3/livestream/14378956"
+	ID=$(jq  .orf3.items[0] /tmp/channels.json | grep \"id | cut -f4 -d " " | cut -f1 -d ",")
         ;;
     4)
-        #URL="https://orfs.mdn.ors.at/orf/orfs/drmqxa/manifest.mpd"
-	URL="https://api-tvthek.orf.at/api/v4.3/livestream/14379001"
+	#URL="https://api-tvthek.orf.at/api/v4.3/livestream/14379001"
+	ID=$(jq  .orfs.items[0] /tmp/channels.json | grep \"id | cut -f4 -d " " | cut -f1 -d ",")
         ;;
     *)
-	URL="https://api-tvthek.orf.at/api/v4.3/timeshift/channel/3026625/sources"
+        logger "$0: error: wrong Case index!"
+        exit 1
         ;;
 esac
+
+URL="https://api-tvthek.orf.at/api/v4.3/livestream/$ID"
 
 if [ -z "${URL}" ]; then
     logger "$0: error: URL not defined!"
