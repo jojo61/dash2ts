@@ -207,12 +207,8 @@ StreamPlayer::StreamPlayer(int portnr) {  // if use_TCP is not set then portnr i
 
 };
 
-StreamPlayer::~StreamPlayer() {
-    if (m_thread.joinable())
-        m_thread.join();
-    if (use_TCP)  
-        close(sockfd);
-};
+StreamPlayer::~StreamPlayer() {};
+
 #if 0
 void StreamPlayer::send_packet(uint8_t *p,int size) {
     int n = 0;
@@ -396,7 +392,9 @@ void StreamPlayer::StreamPlay(AddonHandler *h) {
             }
             
         }
-        while (demux );
+        while (demux);
+        if (use_TCP)  
+            close(sockfd);
     }
 }
 

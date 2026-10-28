@@ -5,7 +5,7 @@
 #include "streamplayer.h"
 #include "addonhandler.h"
 
-static const char *const VERSION = "1.00"
+static const char *const VERSION = "1.01"
 #ifdef GIT_REV
     "-GIT-" GIT_REV
 #endif
@@ -37,13 +37,12 @@ AddonHandler *h;
 void signal_callback_handler(int signum)
 {
     printf("Caught signal %d\n",signum);
-    // Cleanup and close up stuff here
-    // Terminate program
-    if (p)
-        delete p;
-    if (h)
-        delete h;
-    exit(signum);
+    // Terminate program fast and without coredump
+    //if (p)
+    //    delete p;
+    //if (h)
+    //    delete h;
+    std::_Exit(0); 
 }
 
 int
