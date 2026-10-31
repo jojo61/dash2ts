@@ -6,6 +6,11 @@ if [ $# -ne 2 ]; then
     exit 1
 fi
 
+if ! pgrep -x "zattood" > /dev/null; then
+    logger "$0: error: zattood is not running"
+    exit 1
+fi
+
 # Channels.conf parameter
 PARAMETER=${1}
 
